@@ -1,0 +1,9 @@
+{
+  "name": "ming-studio",
+  "private": true,
+  "description": "Render de los disenos de Ming Studio con Chromium",
+  "license": "AGPL-3.0-only",
+  "dependencies": {
+    "playwright": "1.62.0"
+  }
+}

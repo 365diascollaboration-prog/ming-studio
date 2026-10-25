@@ -1,0 +1,748 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lienzo</title>
+<style>
+  html, body { margin:0; padding:0; background:transparent; }
+  body.editor { background:#0c0e12; overflow:hidden; }
+  #lienzo { position:relative; overflow:hidden; transform-origin:0 0; }
+  #lienzo > img.base { position:absolute; inset:0; width:100%; height:100%; display:block; }
+  .bloque { position:absolute; display:flex; align-items:center; box-sizing:border-box; }
+  .txt { width:100%; overflow-wrap:normal; word-break:normal; hyphens:none; outline:none; }
+  .txt.pre { white-space:pre-line; text-wrap:balance; }
+  .txt.linea { white-space:pre; }  /* una sola linea: se achica antes que partirse */
+  .panel { position:absolute; border-radius:calc(var(--u) * 2.2); background:rgba(8, 12, 22, .52);
+    -webkit-backdrop-filter:blur(calc(var(--u) * 1.6)) saturate(1.3); backdrop-filter:blur(calc(var(--u) * 1.6)) saturate(1.3);
+    border:1px solid rgba(255,255,255,.14); box-shadow:0 calc(var(--u) * .8) calc(var(--u) * 3) rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.08); }
+  .panel.denso { background:rgba(8, 12, 22, .84); }
+  .banda { position:absolute; }
+  .marco { position:absolute; inset:calc(var(--u) * 3.5); border:calc(var(--u) * .35) solid; pointer-events:none; }
+  .sujeto { position:absolute; display:block; filter:drop-shadow(0 calc(var(--u) * 1.2) calc(var(--u) * 2.2) rgba(0,0,0,.45)); }
+  .logo img { width:100%; height:100%; object-fit:contain; display:block; }
+  /* titular rotulado por Ming (recortado): ocupa la zona del titular sin deformarse */
+  .bloque > img.arte { width:100%; height:100%; object-fit:contain; display:block;
+    filter:drop-shadow(0 calc(var(--u) * .35) calc(var(--u) * .9) rgba(0,0,0,.45)); }
+  body.editor .bloque > img.arte { cursor:pointer; }
+
+  /* palabra clave y tratamientos */
+  .fx-degradado { -webkit-background-clip:text; background-clip:text; color:transparent !important; -webkit-box-decoration-break:clone; box-decoration-break:clone; }
+  .fx-contorno { color:transparent !important; paint-order:stroke fill; }
+  .txt .l { display:inline-block; white-space:pre; }  /* letra suelta (titular en arco) */
+  .fx-resaltado { padding:0 .14em; border-radius:.06em; -webkit-box-decoration-break:clone; box-decoration-break:clone; }
+
+  /* lista con iconos */
+  .lista > div { display:flex; gap:.5em; align-items:baseline; text-wrap:pretty; }
+  .lista.sinpartir > div { white-space:nowrap; }
+  .lista > div::before { flex:none; color:var(--ac); font-weight:800; }
+  .vin-check > div::before { content:"✓"; background:var(--ac); color:var(--os); width:1.15em; height:1.15em; border-radius:50%;
+    display:inline-flex; align-items:center; justify-content:center; font-size:.78em; transform:translateY(-.08em); }
+  .vin-flecha > div::before { content:"→"; }
+  .vin-rombo > div::before { content:"◆"; font-size:.6em; transform:translateY(-.2em); }
+  .vin-estrella > div::before { content:"★"; }
+  .vin-punto > div::before { content:"●"; font-size:.55em; transform:translateY(-.25em); }
+  .vin-numero { counter-reset:n; }
+  .vin-numero > div::before { counter-increment:n; content:counter(n, decimal-leading-zero); font-size:.8em; letter-spacing:.02em; }
+  .vin-simple > div::before { content:var(--v); }
+
+  /* precio heroe: "$" y centavos arriba, prefijo y sufijo chicos */
+  .precio-h { display:inline-flex; flex-direction:column; align-items:center; line-height:1; }
+  .precio-h .pre-t { font-size:.3em; letter-spacing:.14em; text-transform:uppercase; margin-bottom:.12em; opacity:.92; }
+  .precio-h .fila { display:inline-flex; align-items:flex-start; }
+  .precio-h .mon { font-size:.46em; margin-top:.12em; margin-right:.04em; }
+  .precio-h .cent { font-size:.42em; margin-top:.12em; margin-left:.04em; }
+  .precio-h .suf { font-size:.3em; align-self:flex-end; margin-left:.2em; margin-bottom:.16em; letter-spacing:.04em; }
+  .precios { display:flex; flex-direction:column; gap:.18em; }
+
+  /* boton y sticker */
+  .boton { display:inline-block; padding:.42em 1.15em; white-space:pre; box-shadow:0 .14em .42em rgba(0,0,0,.35); }
+  .boton.contorno { box-shadow:none; border:.085em solid currentColor; background:rgba(0,0,0,.18) !important; }
+  .sticker-c { display:flex; align-items:center; justify-content:center; text-align:center; aspect-ratio:1; height:100%; max-width:100%;
+    transform:rotate(-11deg); box-shadow:0 .2em .6em rgba(0,0,0,.35); }
+  .sticker-c.circulo { border-radius:50%; }
+  .sticker-c.estrella { clip-path:polygon(50% 0%,59% 13%,74% 5%,76% 21%,92% 21%,86% 36%,100% 45%,88% 56%,96% 71%,80% 74%,78% 90%,63% 85%,50% 100%,37% 85%,22% 90%,20% 74%,4% 71%,12% 56%,0% 45%,14% 36%,8% 21%,24% 21%,26% 5%,41% 13%); box-shadow:none; }
+  .sticker-c.pildora { aspect-ratio:auto; width:100%; border-radius:999px; transform:rotate(-4deg); }
+  .sticker-c.cinta { aspect-ratio:auto; width:100%; transform:rotate(-6deg); }
+  .sticker-c > span { display:block; width:78%; line-height:.95; white-space:pre-line; }
+  .txt.stk { height:100%; display:flex; align-items:center; justify-content:center; }
+
+  body.editor .bloque:not(.logo):hover { outline:2px dashed rgba(255,107,74,.8); outline-offset:2px; cursor:text; }
+  body.editor .txt:focus { outline:2px solid #ff6b4a; outline-offset:4px; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <filter id="fx-desgaste" x="-5%" y="-5%" width="110%" height="110%">
+    <feTurbulence type="fractalNoise" baseFrequency=".085" numOctaves="2" seed="7" result="ruido"/>
+    <feColorMatrix in="ruido" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -12 0 0 0 9.1" result="mascara"/>
+    <feComposite in="SourceGraphic" in2="mascara" operator="in"/>
+  </filter>
+</svg>
+<div id="lienzo"></div>
+<script>
+// Dibuja una composicion del motor hibrido. Modos: export=1 (Playwright), edit=1 (editor en la app).
+// Con comp.kit el estilo sale del kit tipografico; sin kit (disenos viejos) de cada bloque.
+const q = new URLSearchParams(location.search);
+const ID = q.get("id"), EXPORT = q.has("export"), EDIT = q.has("edit");
+const L = document.getElementById("lienzo");
+let comp, K = null, bloques = [];
+
+async function cargarFuente(fam, specs) {
+  // specs = {"0,700", "1,400"} (italica, peso). Si la familia no los tiene, Google responde 400 y se pide menos
+  const base = "https://fonts.googleapis.com/css2?family=" + encodeURIComponent(fam).replace(/%20/g, "+");
+  const pesos = [...new Set([...specs].map(x => x.split(",")[1]))].sort();
+  for (const url of [`${base}:ital,wght@${[...specs].sort().join(";")}&display=block`, `${base}:wght@${pesos.join(";")}&display=block`, `${base}&display=block`]) {
+    try {
+      const r = await fetch(url);
+      if (!r.ok) continue;
+      const st = document.createElement("style");
+      st.textContent = await r.text();
+      document.head.append(st);
+      await Promise.all([...specs].map(x => { const [i, p] = x.split(","); return document.fonts.load(`${+i ? "italic " : ""}${p} 40px "${fam}"`); }));
+      return;
+    } catch {}  // sin internet: queda la fuente de respaldo del sistema
+  }
+}
+
+// ---- contraste: se mide contra los pixeles reales del arte en la zona de cada texto ----
+const lum = (r, g, b) => {
+  const f = c => (c /= 255) <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
+};
+const hexLum = h => lum(parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16));
+const ratio = (a, b) => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+const alfa = (h, a) => `rgba(${parseInt(h.slice(1, 3), 16)},${parseInt(h.slice(3, 5), 16)},${parseInt(h.slice(5, 7), 16)},${a})`;
+let muestra;
+function zonaFondo(z) {
+  const c = muestra, W = c.width, H = c.height;
+  const x0 = Math.floor((z.cx - z.w / 2) * W), y0 = Math.floor((z.cy - z.h / 2) * H);
+  const d = c.getContext("2d").getImageData(Math.max(0, x0), Math.max(0, y0), Math.max(1, Math.ceil(z.w * W)), Math.max(1, Math.ceil(z.h * H))).data;
+  let s = 0, s2 = 0, n = 0;
+  for (let i = 0; i < d.length; i += 4) { const l = lum(d[i], d[i + 1], d[i + 2]); s += l; s2 += l * l; n++; }
+  const m = s / n;
+  return { lum: m, ruido: Math.sqrt(Math.max(0, s2 / n - m * m)) };
+}
+const VIDRIO = "#0c1220";
+// lo que hay detras del texto: la pastilla (solo disenos sin kit la dibujan), el vidrio, o nada (el arte)
+const detrasDe = t => (!K && t.fondo) || (t.panel ? VIDRIO : null);
+// color que se lee sobre lo que haya detras (pastilla, vidrio o arte); + sombra si el arte es ruidoso
+function legible(color, t, grande) {
+  const detras = detrasDe(t);
+  const minimo = grande ? 3 : 4.5;  // WCAG: texto grande 3:1, normal 4.5:1
+  if (detras) return { color: ratio(hexLum(color), hexLum(detras)) >= minimo ? color : (hexLum(detras) > 0.4 ? "#141414" : "#ffffff"), sombra: "" };
+  const f = zonaFondo(t.zona);
+  if (ratio(hexLum(color), f.lum) < minimo) color = ratio(1, f.lum) >= ratio(0.012, f.lum) ? "#ffffff" : "#141414";
+  const claro = hexLum(color) > 0.5;
+  const sombra = f.ruido > 0.08 ? (claro ? "0 .04em .35em rgba(0,0,0,.6)" : "0 0 .3em rgba(255,255,255,.55)") : "";
+  return { color, sombra };
+}
+// acento que no se lee: se oscurece (o aclara) conservando el tono, en vez de volverlo negro/blanco
+function acentoLegible(color, t, minimo = 3) {
+  const detras = detrasDe(t);
+  const f = detras ? hexLum(detras) : zonaFondo(t.zona).lum;
+  const hacia = f > 0.4 ? 0 : 255;
+  const rgb = [1, 3, 5].map(i => parseInt(color.slice(i, i + 2), 16));
+  for (let k = 0; k <= 1.0001; k += 0.1) {
+    const c = rgb.map(v => Math.round(v + (hacia - v) * k));
+    if (ratio(lum(...c), f) >= minimo) return "#" + c.map(v => v.toString(16).padStart(2, "0")).join("");
+  }
+  return hacia ? "#ffffff" : "#141414";
+}
+const sobreClaro = t => { const d = detrasDe(t); return d ? hexLum(d) > 0.4 : zonaFondo(t.zona).lum > 0.45; };
+
+// ---- tratamientos tipograficos ----
+const CLIP = ["degradado", "oro", "cromo", "holo"];  // rellenos con background-clip:text
+const METAL = {
+  oro: "linear-gradient(180deg, #fff7cf 0%, #f3d27a 24%, #b8862b 50%, #fbe6a0 64%, #a87422 84%, #e9c46a 100%)",
+  cromo: "linear-gradient(180deg, #ffffff 0%, #dfe3e8 30%, #7c838e 49%, #1f232a 51%, #8d96a2 70%, #f5f7f9 100%)",
+  holo: "linear-gradient(100deg, #ff9ad5 0%, #b69bff 22%, #7ee8fa 44%, #b8ffb0 64%, #ffe57a 82%, #ff9ad5 100%)",
+};
+// contorno grueso parejo hacia afuera (16 sombras en circulo): sticker, letras universitarias
+const anillo = (color, r) => Array.from({ length: 16 }, (_, i) => {
+  const a = i * Math.PI / 8;
+  return `${(Math.cos(a) * r).toFixed(3)}em ${(Math.sin(a) * r).toFixed(3)}em 0 ${color}`;
+});
+function efecto(el, e, sombraBase) {
+  efectoBase(el, e, sombraBase);
+  if (e.desgaste) el.style.filter = ((el.style.filter || "") + " url(#fx-desgaste)").trim();
+}
+function efectoBase(el, e, sombraBase) {
+  const c = e.color, s = [];
+  switch (e.efecto) {
+    case "oro": case "cromo": case "holo":
+      el.classList.add("fx-degradado");
+      el.style.backgroundImage = METAL[e.efecto];
+      el.style.filter = e.claro ? "drop-shadow(0 .025em .02em rgba(0,0,0,.35))"
+        : "drop-shadow(0 .02em .01em rgba(0,0,0,.55)) drop-shadow(0 .07em .16em rgba(0,0,0,.45))";
+      return;
+    case "sticker":
+      el.style.color = c; s.push(...anillo(e.borde || "#111111", .075), `0 .12em .18em rgba(0,0,0,.35)`); break;
+    case "doble_contorno":
+      el.style.color = c; s.push(...anillo(e.color2 || "#ffffff", .04), ...anillo(e.sombra || "#111111", .085)); break;
+    case "relieve":
+      el.style.color = c; s.push(`0 -.018em 0 rgba(255,255,255,.45)`, `0 .028em 0 rgba(0,0,0,.6)`, `0 .07em .13em rgba(0,0,0,.4)`); break;
+    case "glitch":
+      el.style.color = c; s.push(`.045em 0 0 rgba(255,0,90,.85)`, `-.045em 0 0 rgba(0,230,255,.85)`); break;
+    case "sombra_larga": {
+      const d = e.sombra || "#000000";
+      el.style.color = c;
+      for (let i = 1; i <= 22; i++) s.push(`${(i * .011).toFixed(3)}em ${(i * .011).toFixed(3)}em 0 ${d}`);
+      break;
+    }
+    case "rayas": {  // 70s: la letra con dos ecos desplazados de otros colores
+      const a = e.sombra || "#000000", b = e.color2 || "#ffffff";
+      el.style.color = c; s.push(`.045em .045em 0 ${a}`, `.09em .09em 0 ${b}`, `.135em .135em 0 ${a}`);
+      break;
+    }
+    case "neon_tubo": {  // letrero de neon: tubo claro con resplandor del color
+      const b = e.brillo || c;
+      el.style.color = "#fff8f2"; el.style.webkitTextStroke = `.012em ${b}`;
+      s.push(`0 0 .03em #fff`, `0 0 .09em ${b}`, `0 0 .22em ${b}`, `0 0 .5em ${b}`, `0 0 .9em ${alfa(b, .55)}`);
+      break;
+    }
+    case "fuente_color":  // la fuente trae sus propios colores (Nabla, Honk, Bungee Spice)
+      s.push(`0 .05em .14em rgba(0,0,0,.35)`); break;
+    case "neon": {
+      const b = e.brillo || c;
+      el.style.color = c;
+      s.push(`0 0 .02em #fff`, `0 0 .08em ${b}`, `0 0 .2em ${b}`, `0 0 .42em ${b}`, `0 0 .8em ${alfa(b, .6)}`);
+      break;
+    }
+    case "degradado":
+      el.classList.add("fx-degradado");
+      el.style.backgroundImage = `linear-gradient(180deg, ${e.color2 || "#ffffff"} 8%, ${c} 92%)`;
+      // sombra oscura amplia sobre fondo claro se ve sucia: ahi solo un toque para separar
+      el.style.filter = e.claro ? "drop-shadow(0 .02em .03em rgba(0,0,0,.18))" : "drop-shadow(0 .03em .12em rgba(0,0,0,.45))";
+      return;
+    case "extrusion": {
+      const d = e.sombra || "#000000";
+      el.style.color = c;
+      for (let i = 1; i <= 7; i++) s.push(`${(i * 0.011).toFixed(3)}em ${(i * 0.013).toFixed(3)}em 0 ${d}`);
+      s.push(`.1em .14em .22em rgba(0,0,0,.45)`);
+      break;
+    }
+    case "sombra_dura":
+      el.style.color = c; s.push(`.055em .06em 0 ${e.sombra || "#000000"}`); break;
+    case "contorno":
+      el.classList.add("fx-contorno"); el.style.webkitTextStroke = `.035em ${c}`; break;
+    case "resaltado": {
+      const f = e.fondo || "#ffd400";
+      el.style.color = c; el.classList.add("fx-resaltado");
+      el.style.backgroundImage = `linear-gradient(transparent 14%, ${f} 14%, ${f} 94%, transparent 94%)`;
+      return;
+    }
+    case "subrayado":
+      el.style.backgroundImage = `linear-gradient(transparent 64%, ${alfa(c, .55)} 64%, ${alfa(c, .55)} 90%, transparent 90%)`; return;
+    case "color":
+      el.style.color = c; break;
+    default:
+      el.style.color = c;
+  }
+  if (sombraBase) s.push(sombraBase);
+  el.style.textShadow = s.join(", ");
+}
+
+// caligrafia en MAYUSCULAS no se lee: "FESTIVAL DE LANGOSTA" -> "Festival de Langosta"
+const MENORES = new Set(["de", "del", "la", "las", "el", "los", "y", "e", "a", "en", "con", "por", "para", "o", "u", "al"]);
+function tipoTitulo(s, primera = true) {
+  const letras = s.match(/\p{L}/gu) || [];
+  if (letras.filter(c => c !== c.toLowerCase()).length < letras.length * 0.8 || !letras.length) return s;
+  let i = 0;
+  // "2x1" se queda como esta: con numeros no es una palabra
+  return s.toLowerCase().replace(/[\p{L}\p{N}]+/gu, w => /\p{N}/u.test(w) ? (i++, w) : (i++ === 0 && primera) || !MENORES.has(w) ? w[0].toUpperCase() + w.slice(1) : w);
+}
+
+// el contorno de sticker y el doble contorno tienen que verse contra el arte: si no, se usa claro u oscuro
+function bordeLegible(e, t) {
+  if (!["sticker", "doble_contorno"].includes(e.efecto)) return;
+  const campo = e.efecto === "sticker" ? "borde" : "sombra";
+  const d = detrasDe(t), f = d ? hexLum(d) : zonaFondo(t.zona).lum;
+  const actual = e[campo] || "#111111";
+  if (ratio(hexLum(actual), f) >= 2) return;
+  e[campo] = ratio(1, f) >= ratio(0.012, f) ? "#ffffff" : "#141414";
+  if (e.color && ratio(hexLum(e.color), hexLum(e[campo])) < 1.6) e.color = K?.paleta?.acento || "#ffd400";  // letra blanca con borde blanco
+}
+
+// "Agentes de *IA*" -> la palabra entre asteriscos va con el tratamiento "clave" del kit
+function conClave(el, texto, estiloClave) {
+  texto.split(/(\*[^*\n]+\*)/g).forEach(parte => {
+    if (!parte) return;
+    if (/^\*[^*\n]+\*$/.test(parte)) {
+      const s = document.createElement("span"); s.className = "clave"; s.textContent = parte.slice(1, -1);
+      if (estiloClave) {
+        efecto(s, estiloClave);
+        const k = estiloClave, corta = s.textContent.length <= 14;  // agrandar/girar una frase larga la deja sin partir
+        if (k.script) s.textContent = tipoTitulo(s.textContent, false);
+        if (k.fuente) s.style.fontFamily = `"${k.fuente}", system-ui, sans-serif`;
+        if (k.peso) s.style.fontWeight = k.peso;
+        if (k.it) s.style.fontStyle = "italic";
+        if (k.mayus !== undefined) s.style.textTransform = k.mayus ? "uppercase" : "none";
+        if (k.tracking !== undefined) s.style.letterSpacing = k.tracking + "em";
+        if (k.tam && corta) s.style.fontSize = k.tam + "em";
+        if (k.rot && corta) { s.style.display = "inline-block"; s.style.transform = `rotate(${k.rot}deg)`; }
+      }
+      el.append(s);
+    } else el.append(document.createTextNode(parte));
+  });
+}
+const sinMarcas = s => s.replace(/\*([^*\n]+)\*/g, "$1");
+
+// "Desde $1,299.99/mes" -> prefijo "Desde", "$" arriba, 1,299 grande, "99" arriba, "/mes" chico
+function precioHeroe(linea) {
+  const m = linea.match(/^(.*?)(US\$|\$|€|RD\$)\s?(\d{1,3}(?:[.,]\d{3})*|\d+)(?:[.,](\d{2}))?(?!\d)\s*(.*)$/);
+  if (!m) return null;
+  const [, pre, mon, ent, cent, suf] = m;
+  const w = document.createElement("span"); w.className = "precio-h";
+  if (pre.trim()) { const p = document.createElement("span"); p.className = "pre-t"; p.textContent = pre.trim(); w.append(p); }
+  const fila = document.createElement("span"); fila.className = "fila";
+  const num = document.createElement("span"); num.className = "num";
+  const smon = document.createElement("span"); smon.className = "mon"; smon.textContent = mon;
+  num.append(smon, document.createTextNode(ent));
+  if (cent) { const c = document.createElement("span"); c.className = "cent"; c.textContent = cent; num.append(c); }
+  fila.append(num);
+  if (suf.trim()) { const sf = document.createElement("span"); sf.className = "suf"; sf.textContent = suf.trim(); fila.append(sf); }
+  w.append(fila);
+  w.dataset.original = linea;
+  return { w, num };
+}
+
+// ---- ajuste: el tamano mas grande que cabe completo en la zona (busqueda binaria) ----
+function mayorQueCabe(b, tope) {
+  const box = b.el, t = b.txt;
+  let lo = 4, hi = Math.min(tope || Infinity, Math.max(8, box.clientHeight * 1.15));
+  for (let i = 0; i < 20; i++) {
+    const mid = (lo + hi) / 2;
+    t.style.fontSize = mid + "px";
+    const cabe = t.scrollHeight <= box.clientHeight + 0.5 && t.scrollWidth <= t.clientWidth + 0.5;
+    cabe ? (lo = mid) : (hi = mid);
+  }
+  return lo;
+}
+function ajustarSticker(b) {
+  const st = b.txt.querySelector(".sticker-c");
+  if (!st) return;
+  const lado = Math.min(b.el.clientWidth, b.el.clientHeight);
+  if (!st.classList.contains("pildora") && !st.classList.contains("cinta")) { st.style.height = st.style.width = lado + "px"; }
+  else { st.style.height = lado * 0.55 + "px"; }
+  const sp = st.querySelector("span");
+  sp.style.width = "auto"; sp.style.display = "inline-block"; sp.style.whiteSpace = "pre";
+  const maxAncho = st.clientWidth * 0.72, maxAlto = st.clientHeight * 0.6;
+  let lo = 4, hi = st.clientHeight;
+  for (let i = 0; i < 18; i++) {
+    const mid = (lo + hi) / 2;
+    st.style.fontSize = mid + "px";
+    sp.offsetWidth <= maxAncho && sp.offsetHeight <= maxAlto ? (lo = mid) : (hi = mid);
+  }
+  st.style.fontSize = lo.toFixed(1) + "px";
+  b.size = null;
+}
+function ajustar(b, tope) {
+  if (b.t.rol === "sticker" && K) return ajustarSticker(b);
+  const t = b.txt;
+  let size = mayorQueCabe(b, tope);
+  if (b.t.rol === "lista") {
+    // un punto por linea se lee mejor; se acepta si la letra no queda mucho mas chica
+    t.classList.add("sinpartir");
+    const enLinea = mayorQueCabe(b, tope);
+    if (enLinea >= size * 0.72) size = enLinea;
+    else t.classList.remove("sinpartir");
+  }
+  t.style.fontSize = size.toFixed(2) + "px";
+  if (b.t.rol === "lista") {
+    t.style.lineHeight = "1.3";
+    const holgura = b.el.clientHeight / t.scrollHeight;
+    if (holgura > 1.1) t.style.lineHeight = Math.min(1.9, 1.3 * holgura * 0.92).toFixed(2);
+  }
+  b.size = size;
+}
+
+// ---- estilo de cada rol: del kit si hay, si no del propio bloque ----
+function estiloDe(t) {
+  if (!K) return { fam: comp.fuentes[t.fuente] || "Inter", peso: t.peso, mayus: t.mayusculas, tracking: t.mayusculas && t.fuente === "cuerpo" ? .06 : 0,
+    linea: ["titulo", "precio"].includes(t.rol) ? 1.02 : 1.25, efecto: "ninguno", color: t.color };
+  const F = K.fuentes, pal = K.paleta;
+  const cuerpo = { fam: F.cuerpo, peso: K.cuerpo.peso, mayus: false, tracking: K.cuerpo.tracking, linea: 1.25, efecto: "ninguno", color: pal.claro };
+  switch (t.rol) {
+    case "titulo": return { fam: F.titulo, peso: K.titulo.peso, mayus: K.titulo.mayus, tracking: K.titulo.tracking, ...K.titulo,
+                            linea: K.clave.efecto === "resaltado" ? Math.max(1.06, K.titulo.linea) : K.titulo.linea };
+    case "subtitulo": return { ...cuerpo, peso: K.subtitulo.peso, mayus: K.subtitulo.mayus, tracking: K.subtitulo.tracking, color: K.subtitulo.color };
+    case "precio": return { fam: K.precio.fuente === "cuerpo" ? F.cuerpo : (F.precio || F.titulo), peso: K.precio.peso, mayus: false, tracking: 0, linea: 1, ...K.precio };
+    case "cta": return { ...cuerpo, peso: 700, mayus: K.cta.mayus, tracking: K.cta.tracking, color: K.cta.color };
+    case "sticker": return { fam: F.precio || F.titulo, peso: K.titulo.peso, mayus: true, tracking: 0.02, linea: 0.95, efecto: "ninguno", color: K.sticker.color };
+    case "contacto": return { ...cuerpo, tracking: .02, color: pal.claro };
+    default: return { ...cuerpo, color: K.lista.color || pal.claro };
+  }
+}
+
+function textoDe(b) {
+  const { t, txt } = b;
+  const leer = el => [...el.childNodes].map(n => n.nodeType === 3 ? n.textContent : n.classList?.contains("clave") ? `*${n.textContent}*` : leer(n)).join("");
+  if (t.rol === "lista") return [...txt.children].map(d => d.textContent.trim()).filter(Boolean).join("\n");
+  if (t.rol === "precio" && K) return [...txt.querySelectorAll(".precio-h, .linea-p")].map(p => p.innerText.replace(/\s+/g, " ").trim()).join("\n");
+  if (t.fondo && !K) return [...txt.querySelectorAll(".pill")].map(d => d.textContent.trim()).filter(Boolean).join("\n");
+  return leer(txt).trim();
+}
+
+function llenar(b, e) {
+  const { t, txt } = b;
+  txt.textContent = "";
+  if (t.rol === "lista") {
+    sinMarcas(t.texto).split("\n").forEach(linea => { const d = document.createElement("div"); d.textContent = linea; txt.append(d); });
+    txt.style.color = e.color;
+    if (e.sombraCtx) txt.style.textShadow = e.sombraCtx;
+    return;
+  }
+  if (t.rol === "precio" && K) {
+    const caja = document.createElement("div"); caja.className = "precios";
+    caja.style.alignItems = { left: "flex-start", center: "center", right: "flex-end" }[t.alinear];
+    txt.style.color = e.color;  // "Desde" y "/mes" heredan el color aunque el numero lleve degradado
+    sinMarcas(t.texto).split("\n").forEach(linea => {
+      const p = precioHeroe(linea);
+      if (p) { efecto(p.num, e, e.sombraCtx); caja.append(p.w); }
+      else { const s = document.createElement("span"); s.className = "linea-p"; s.textContent = linea; efecto(s, e, e.sombraCtx); caja.append(s); }
+    });
+    txt.append(caja);
+    return;
+  }
+  if (t.rol === "cta" && K) {
+    const bt = document.createElement("span"); bt.className = "boton" + (K.cta.estilo === "contorno" ? " contorno" : "");
+    bt.textContent = sinMarcas(t.texto);
+    const r = K.cta.radio; bt.style.borderRadius = r >= 0.5 ? "999px" : r * 2 + "em";
+    if (K.cta.estilo === "contorno") bt.style.color = e.color;
+    else { bt.style.background = e.color; bt.style.color = hexLum(e.color) > 0.4 ? "#141414" : "#ffffff"; }
+    txt.append(bt);
+    return;
+  }
+  if (t.rol === "sticker" && K) {
+    const st = document.createElement("div"); st.className = "sticker-c " + K.sticker.forma;
+    st.style.background = e.color; st.style.color = hexLum(e.color) > 0.4 ? "#141414" : "#ffffff";
+    const s = document.createElement("span"); s.textContent = sinMarcas(t.texto); st.append(s);
+    txt.append(st);
+    return;
+  }
+  if (t.fondo && !K) {
+    const caja = document.createElement("div"); caja.style.cssText = "display:flex;flex-direction:column;gap:.18em";
+    caja.style.alignItems = { left: "flex-start", center: "center", right: "flex-end" }[t.alinear];
+    t.texto.split("\n").forEach(linea => { const s = document.createElement("span"); s.style.cssText = `display:block;white-space:pre;border-radius:.45em;padding:.12em .6em;background:${t.fondo}`; s.textContent = linea; caja.append(s); });
+    txt.append(caja);
+    return;
+  }
+  if (t.rol === "titulo" && K) {
+    const c = { ...K.clave };
+    if (c.efecto !== "resaltado") {  // el resaltado trae su propio fondo; lo demas se mide contra el arte
+      c.color = acentoLegible(c.color, t);
+      if (c.color2) c.color2 = acentoLegible(c.color2, t);
+      c.claro = sobreClaro(t);
+      if (["neon", "neon_tubo"].includes(c.efecto) && c.claro) c.efecto = "ninguno";
+      bordeLegible(c, t);
+    }
+    conClave(txt, e.script ? tipoTitulo(t.texto) : t.texto, c);
+    efecto(txt, e, e.sombraCtx);
+    // los spans clave conservan su propio tratamiento aunque el titulo tenga degradado
+    txt.querySelectorAll(".clave").forEach(s => { if (CLIP.includes(e.efecto)) s.style.webkitTextFillColor = "initial"; });
+    return;
+  }
+  txt.textContent = sinMarcas(t.texto);
+  efecto(txt, e, e.sombraCtx);
+}
+
+function crearBloque(t) {
+  const W = comp.w, H = comp.h, z = t.zona;
+  const el = document.createElement("div");
+  el.className = "bloque" + (t.rol === "logo" ? " logo" : "");
+  Object.assign(el.style, { left: (z.cx - z.w / 2) * W + "px", top: (z.cy - z.h / 2) * H + "px", width: z.w * W + "px", height: z.h * H + "px" });
+  const b = { t, el, e: null };
+  if (t.rol === "logo") {
+    if (!comp.logo) return null;
+    const img = document.createElement("img"); img.src = comp.logo; img.alt = "Logo"; el.append(img);
+    L.append(el); return b;
+  }
+  // titular rotulado por Ming: se usa su imagen (salvo en la vista previa de otra letra)
+  const arte = t.rol === "titulo" && t.arte && !q.get("letra") ? document.createElement("img") : null;
+  if (arte) {
+    arte.className = "arte"; arte.src = t.arte; arte.alt = sinMarcas(t.texto);
+    arte.style.objectPosition = { left: "left center", right: "right center" }[t.alinear] || "center";
+    el.append(arte); b.arte = arte;
+    if (!EDIT) { L.append(el); return b; }
+    arte.title = "Clic para editar el texto (pasa a tipografía)";
+  }
+  const txt = document.createElement("div");
+  const UNA_LINEA = ["precio", "subtitulo", "contacto", "cta"];
+  const vin = K ? (K.lista.vinieta || "punto") : "simple";
+  txt.className = "txt" + (t.rol === "lista" ? ` lista vin-${vin}` : t.rol === "sticker" ? " stk" : UNA_LINEA.includes(t.rol) && t.texto.length <= 34 ? " linea" : " pre");  // una frase larga en una linea queda ilegible
+  const e = { ...estiloDe(t) };
+  const grande = ["titulo", "precio", "sticker"].includes(t.rol);
+  if (!["cta", "sticker"].includes(t.rol)) {
+    const lg = legible(e.color, t, grande);
+    e.color = lg.color; e.sombraCtx = lg.sombra;
+    if (e.efecto === "degradado" && e.color2 && ratio(hexLum(e.color2), sobreClaro(t) ? 0.9 : 0.02) < 2) e.color2 = e.color;
+    e.claro = sobreClaro(t);
+    if (["neon", "neon_tubo"].includes(e.efecto) && e.claro) e.efecto = "ninguno";  // el brillo neon solo luce sobre oscuro
+    bordeLegible(e, t);
+  }
+  Object.assign(txt.style, {
+    fontFamily: `"${e.fam}", system-ui, sans-serif`, fontWeight: e.peso, fontStyle: e.it ? "italic" : "normal", textAlign: t.alinear,
+    textTransform: e.mayus ? "uppercase" : "none", lineHeight: String(e.linea || 1.25), letterSpacing: (e.tracking || 0) + "em",
+  });
+  if (K) {
+    txt.style.setProperty("--ac", legible(K.paleta.acento, t, true).color);
+    txt.style.setProperty("--os", K.paleta.oscuro);
+  } else if (t.rol === "lista") txt.style.setProperty("--v", `"${(t.vinieta || "•").replace(/"/g, "")}"`);
+  el.style.justifyContent = t.rol === "sticker" ? "center" : { left: "flex-start", center: "center", right: "flex-end" }[t.alinear];
+  el.append(txt);
+  L.append(el);
+  b.txt = txt; b.e = e;
+  llenar(b, e);
+  if (arte) {  // editor: el lettering se ve; al tocarlo pasa a texto editable
+    txt.style.display = "none";
+    arte.onclick = () => { arte.remove(); b.arte = null; txt.style.display = ""; ajustar(b); txt.focus(); };
+  }
+  if (EDIT && t.rol !== "sticker") {
+    txt.contentEditable = "true";
+    txt.spellcheck = false;
+    txt.addEventListener("input", () => ajustar(b));
+    txt.addEventListener("blur", () => {
+      const nuevo = textoDe(b);
+      if (nuevo.toLowerCase() === t.texto.toLowerCase()) return;  // solo cambio de mayusculas (Tipo Titulo): no es una edicion
+      t.texto = nuevo; avisar();
+    });
+    txt.addEventListener("keydown", ev => { if (ev.key === "Enter" && !["lista", "texto", "precio"].includes(t.rol)) { ev.preventDefault(); txt.blur(); } });
+  }
+  return b;
+}
+
+function avisar() { parent.postMessage({ tipo: "lienzo-textos", id: ID, textos: comp.textos }, location.origin); }
+
+function escalarEditor() {
+  if (!EDIT && EXPORT) return;
+  const s = Math.min(innerWidth / comp.w, (EDIT ? innerHeight : Infinity) / comp.h);
+  L.style.transform = `scale(${s})`;
+  if (EDIT) Object.assign(L.style, { position: "absolute", left: (innerWidth - comp.w * s) / 2 + "px", top: (innerHeight - comp.h * s) / 2 + "px" });
+  document.body.style.height = comp.h * s + "px";
+  parent.postMessage({ tipo: "lienzo-alto", id: ID, alto: comp.h * s, ancho: comp.w * s }, location.origin);
+}
+
+// ---- titular en arco: cada letra sube/baja sobre una parabola y gira con su pendiente ----
+function arquear(b) {
+  const k = b.e?.arco, t = b.txt;
+  if (!k || EDIT || CLIP.includes(b.e.efecto) || b.size == null) return;
+  if (t.scrollHeight > b.size * (b.e.linea || 1) * 1.5) return;  // solo titulares de una linea
+  b.size *= 1 - k * .6;  // la curva necesita aire arriba y abajo
+  t.style.fontSize = b.size.toFixed(2) + "px";
+  const partir = n => [...n.childNodes].forEach(c => {
+    if (c.nodeType === 3) {
+      const f = document.createDocumentFragment();
+      for (const ch of c.textContent) { const s = document.createElement("span"); s.className = "l"; s.textContent = ch; f.append(s); }
+      c.replaceWith(f);
+    } else if (c.nodeType === 1) partir(c);
+  });
+  partir(t);
+  const ls = [...t.querySelectorAll(".l")];
+  const xs = ls.map(l => { const r = l.getBoundingClientRect(); return r.left + r.width / 2; });
+  const min = Math.min(...xs), max = Math.max(...xs), cx = (min + max) / 2, half = (max - min) / 2 || 1;
+  const amp = k * b.size * 1.6;
+  ls.forEach((l, i) => {
+    const d = (xs[i] - cx) / half;
+    l.style.transform = `translateY(${(amp * d * d - amp / 2).toFixed(1)}px) rotate(${(Math.atan(2 * amp * d / half) * 180 / Math.PI).toFixed(2)}deg)`;
+  });
+}
+
+// ---- escala tipografica: cada rol como mucho X veces el titular, asi la jerarquia siempre se lee ----
+function jerarquia() {
+  if (!K) return;
+  const titulo = bloques.find(b => b.t.rol === "titulo" && b.size != null);
+  if (!titulo) return;
+  for (const b of bloques) {
+    if (!b.txt || b === titulo || b.size == null) continue;
+    // la jerarquia achica, pero nunca por debajo de lo que se lee en un celular (y nunca mas grande que el titular)
+    const tope = Math.max(titulo.size * (K.escala[b.t.rol] ?? K.escala.texto), Math.min(MIN_LETRA * comp.w * 1.08, titulo.size * 0.9));
+    if (b.size > tope) ajustar(b, tope);
+  }
+}
+
+async function iniciar() {
+  const extra = ["kit", "reticula", "letra"].filter(k => q.get(k)).map(k => `&${k}=${encodeURIComponent(q.get(k))}`).join("");
+  const r = await fetch(`/api/comp?id=${encodeURIComponent(ID)}${extra}`);
+  if (!r.ok) throw new Error("composicion no encontrada");
+  comp = await r.json();
+  K = comp.kit || null;
+  if (EDIT) document.body.classList.add("editor");
+  Object.assign(L.style, { width: comp.w + "px", height: comp.h + "px" });
+  const base = new Image();
+  base.className = "base"; base.alt = ""; base.src = comp.base;
+  await base.decode();
+  L.append(base);
+  // muestra reducida del arte (con el sujeto) para medir contraste sin leer millones de pixeles
+  muestra = document.createElement("canvas");
+  muestra.width = 256; muestra.height = Math.max(1, Math.round(256 * comp.h / comp.w));
+  const ctx = muestra.getContext("2d", { willReadFrequently: true });
+  ctx.drawImage(base, 0, 0, muestra.width, muestra.height);
+  // objetos de la biblioteca: decoran debajo del sujeto; el motor ya quito los que chocaban con texto
+  const objetosImg = await Promise.all((comp.objetos || []).map(async o => {
+    const im = new Image(); im.className = "sujeto"; im.alt = ""; im.src = o.src;
+    await im.decode();
+    const z = o.zona;
+    ctx.drawImage(im, (z.cx - z.w / 2) * muestra.width, (z.cy - z.h / 2) * muestra.height, z.w * muestra.width, z.h * muestra.height);
+    Object.assign(im.style, { left: (z.cx - z.w / 2) * comp.w + "px", top: (z.cy - z.h / 2) * comp.h + "px", width: z.w * comp.w + "px", height: z.h * comp.h + "px" });
+    return im;
+  }));
+  let sujetoImg = null;
+  if (comp.sujeto) {
+    sujetoImg = new Image(); sujetoImg.className = "sujeto"; sujetoImg.alt = ""; sujetoImg.src = comp.sujeto.src;
+    await sujetoImg.decode();
+    const z = comp.sujeto.zona, k = muestra.width;
+    ctx.drawImage(sujetoImg, (z.cx - z.w / 2) * k, (z.cy - z.h / 2) * muestra.height, z.w * k, z.h * muestra.height);
+    Object.assign(sujetoImg.style, { left: (z.cx - z.w / 2) * comp.w + "px", top: (z.cy - z.h / 2) * comp.h + "px", width: z.w * comp.w + "px", height: z.h * comp.h + "px" });
+  }
+
+  const usados = {}, usar = (fam, peso, it) => (usados[fam] ??= new Set()).add(`${it ? 1 : 0},${peso || 400}`);
+  for (const t of comp.textos) {
+    if (t.rol === "logo") continue;
+    const e = estiloDe(t);
+    usar(e.fam, e.peso, e.it);
+    if (K && t.rol === "titulo") {
+      usar(K.fuentes.titulo, K.titulo.peso, K.titulo.it);
+      if (/\*[^*\n]+\*/.test(t.texto)) usar(K.clave.fuente || K.fuentes.titulo, K.clave.peso || K.titulo.peso, K.clave.it ?? K.titulo.it);
+    }
+  }
+  await Promise.all(Object.entries(usados).map(([f, p]) => cargarFuente(f, p)));
+  await document.fonts.ready;
+
+  L.style.setProperty("--u", comp.w / 100 + "px");  // 1u = 1% del ancho: el vidrio escala con el diseno
+  const vidrios = [];
+  for (const z of comp.paneles || []) {
+    // sobre arte claro el vidrio al 52% queda gris medio y el texto no contrasta: ahi va denso
+    const p = document.createElement("div"); p.className = "panel" + (zonaFondo(z).lum > 0.45 ? " denso" : "");
+    Object.assign(p.style, { left: (z.cx - z.w / 2) * comp.w + "px", top: (z.cy - z.h / 2) * comp.h + "px", width: z.w * comp.w + "px", height: z.h * comp.h + "px" });
+    L.append(p); vidrios.push({ el: p, z });
+  }
+  if (comp.banda) {  // reticula "banda inferior": franja solida del color oscuro del kit
+    const z = comp.banda, bd = document.createElement("div"); bd.className = "banda";
+    Object.assign(bd.style, { left: (z.cx - z.w / 2) * comp.w + "px", top: (z.cy - z.h / 2) * comp.h + "px", width: z.w * comp.w + "px", height: z.h * comp.h + "px",
+                              background: K ? K.paleta.oscuro : VIDRIO });
+    L.append(bd);
+  }
+  if (comp.marco) {  // reticula "marco editorial": filete fino que se lee sobre el arte
+    const m = document.createElement("div"); m.className = "marco";
+    m.style.borderColor = zonaFondo({ cx: .5, cy: .5, w: 1, h: 1 }).lum > 0.45 ? "#141414" : (K ? K.paleta.claro : "#ffffff");
+    L.append(m);
+  }
+  const visibles = comp.textos.filter(t => t.pinta !== "ming");
+  const detras = comp.titular_detras ? visibles.filter(t => t.rol === "titulo") : [];
+  bloques = detras.map(crearBloque);
+  objetosImg.forEach(im => L.append(im));
+  if (sujetoImg) L.append(sujetoImg);  // el sujeto tapa al titular "detras" y queda bajo el resto
+  bloques = bloques.concat(visibles.filter(t => !detras.includes(t)).map(crearBloque)).filter(Boolean);
+  if (comp.logo) await Promise.all([...L.querySelectorAll(".logo img")].map(i => i.decode().catch(() => {})));
+  await Promise.all([...L.querySelectorAll("img.arte")].map(i => i.decode().catch(() => {})));
+  bloques.forEach(b => b.txt && !b.arte && ajustar(b));
+  // con lettering, la jerarquia se mide contra un tamano equivalente: ~la mitad del alto de la zona
+  bloques.filter(b => b.arte).forEach(b => { b.size = b.el.clientHeight * 0.55; });
+  bloques.filter(b => b.t.rol === "titulo").forEach(arquear);
+  jerarquia();
+  cenirVidrios(vidrios);
+  escalarEditor();
+  addEventListener("resize", escalarEditor);
+  window.__juez = juzgar();
+  window.__listo = true;
+}
+
+const MIN_LETRA = 0.017;  // 1.7% del ancho: en un celular, por debajo ya no se lee (motor.MIN_LETRA)
+// caja de un elemento en fraccion del lienzo (0..1); vale tambien con el editor escalado
+function cajaFr(r) {
+  const lr = L.getBoundingClientRect();
+  return { x0: (r.left - lr.left) / lr.width, y0: (r.top - lr.top) / lr.height, x1: (r.right - lr.left) / lr.width, y1: (r.bottom - lr.top) / lr.height };
+}
+// la tinta real de un bloque (letras, lettering o sello), no la zona que se le reservo
+function tintaDe(b) {
+  const el = b.el.querySelector(b.t.rol === "logo" ? "img" : "img.arte, .sticker-c");
+  if (el?.tagName === "IMG" && el.naturalWidth) {  // imagen con object-fit contain: la tinta es el rectangulo contenido
+    const r = el.getBoundingClientRect(), e = Math.min(r.width / el.naturalWidth, r.height / el.naturalHeight);
+    const w = el.naturalWidth * e, h = el.naturalHeight * e;
+    const x = r.left + (r.width - w) * ({ "left center": 0, "right center": 1 }[el.style.objectPosition] ?? 0.5), y = r.top + (r.height - h) / 2;
+    return cajaFr({ left: x, top: y, right: x + w, bottom: y + h });
+  }
+  if (el) return cajaFr(el.getBoundingClientRect());
+  // solo donde hay letras: un span de bloque (precio heroe, lista) mide todo el ancho aunque el texto sea corto
+  const raiz = b.txt || b.el, rg = document.createRange(), w = document.createTreeWalker(raiz, NodeFilter.SHOW_TEXT);
+  let c = null;
+  for (let n = w.nextNode(); n; n = w.nextNode()) {
+    if (!n.textContent.trim()) continue;
+    rg.selectNodeContents(n);
+    const r = rg.getBoundingClientRect();
+    if (!r.width) continue;
+    c = c ? { left: Math.min(c.left, r.left), top: Math.min(c.top, r.top), right: Math.max(c.right, r.right), bottom: Math.max(c.bottom, r.bottom) } : r;
+  }
+  return cajaFr(c || raiz.getBoundingClientRect());
+}
+// el vidrio abraza las letras, no la zona reservada: una lista corta en una zona grande dejaba una caja vacia enorme
+function cenirVidrios(vidrios) {
+  const dentro = (z, t) => Math.abs(t.cx - z.cx) <= z.w / 2 && Math.abs(t.cy - z.cy) <= z.h / 2;
+  const px = 0.03, py = 0.03 * comp.w / comp.h;
+  for (const v of vidrios) {
+    const cajas = bloques.filter(b => b.t.panel && dentro(v.z, b.t.zona)).map(tintaDe).filter(c => c.x1 > c.x0);
+    if (!cajas.length) continue;
+    const x0 = Math.max(0.015, Math.min(...cajas.map(c => c.x0)) - px), x1 = Math.min(0.985, Math.max(...cajas.map(c => c.x1)) + px);
+    const y0 = Math.max(0.015, Math.min(...cajas.map(c => c.y0)) - py), y1 = Math.min(0.985, Math.max(...cajas.map(c => c.y1)) + py);
+    Object.assign(v.el.style, { left: x0 * comp.w + "px", top: y0 * comp.h + "px", width: (x1 - x0) * comp.w + "px", height: (y1 - y0) * comp.h + "px" });
+  }
+}
+// ---- juez: revisa el diseno YA ARMADO como lo haria un disenador; mide, no opina ----
+// Cajas en fraccion del lienzo (0..1), medidas sobre la tinta real, no sobre la zona pedida.
+function juzgar() {
+  const tinta = tintaDe;
+  const area = c => Math.max(0, c.x1 - c.x0) * Math.max(0, c.y1 - c.y0);
+  const cruce = (a, c) => area({ x0: Math.max(a.x0, c.x0), y0: Math.max(a.y0, c.y0), x1: Math.min(a.x1, c.x1), y1: Math.min(a.y1, c.y1) });
+  const MARGEN = 0.025;
+  // fraccion de una caja tapada por pixeles opacos del sujeto (no por su rectangulo: el recorte tiene huecos)
+  const cubierto = c => {
+    const im = [...L.querySelectorAll("img.sujeto")].find(i => i.src.endsWith(comp.sujeto.src.split("/").pop()));
+    if (!im) return 0;
+    const z = comp.sujeto.zona, cv = document.createElement("canvas"); cv.width = 160; cv.height = 160;
+    const ctx = cv.getContext("2d", { willReadFrequently: true });
+    ctx.drawImage(im, ((z.cx - z.w / 2) - c.x0) / (c.x1 - c.x0) * 160, ((z.cy - z.h / 2) - c.y0) / (c.y1 - c.y0) * 160, z.w / (c.x1 - c.x0) * 160, z.h / (c.y1 - c.y0) * 160);
+    const d = ctx.getImageData(0, 0, 160, 160).data;
+    let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i] > 128) n++;
+    return n / (160 * 160);
+  };
+  const piezas = bloques
+    .map(b => ({ b, rol: b.t.rol, texto: sinMarcas(b.t.texto || "").slice(0, 40), caja: tinta(b) }))
+    .filter(p => area(p.caja) > 0);
+  const problemas = [];
+  for (const p of piezas) {
+    const c = p.caja, lados = [c.x0 < MARGEN && "izquierda", c.x1 > 1 - MARGEN && "derecha", c.y0 < MARGEN && "arriba", c.y1 > 1 - MARGEN && "abajo"].filter(Boolean);
+    if (lados.length) problemas.push({ tipo: "borde", rol: p.rol, texto: p.texto, lados, caja: c });
+    const sello = p.rol === "sticker" && p.b.el.querySelector(".sticker-c");
+    if (sello) {  // el texto del sello tambien se tiene que leer (un poco mas chico se acepta: es un acento)
+      const px = parseFloat(getComputedStyle(sello).fontSize);
+      if (px < MIN_LETRA * 0.85 * comp.w) problemas.push({ tipo: "ilegible", rol: p.rol, texto: p.texto, letra: +(px / comp.w / 0.85).toFixed(4) });
+    }
+    if (p.b.txt && !p.b.arte && !["logo", "sticker"].includes(p.rol)) {
+      const px = parseFloat(getComputedStyle(p.b.txt).fontSize);
+      if (px < MIN_LETRA * comp.w) problemas.push({ tipo: "ilegible", rol: p.rol, texto: p.texto, letra: +(px / comp.w).toFixed(4) });
+    }
+  }
+  for (let i = 0; i < piezas.length; i++) for (let j = i + 1; j < piezas.length; j++) {
+    const a = piezas[i], c = piezas[j], x = cruce(a.caja, c.caja);
+    if (x > 0.15 * Math.min(area(a.caja), area(c.caja))) problemas.push({ tipo: "encimados", rol: a.rol, con: c.rol, texto: a.texto, texto2: c.texto });
+  }
+  if (comp.sujeto) {
+    const z = comp.sujeto.zona, s = { x0: z.cx - z.w / 2, y0: z.cy - z.h / 2, x1: z.cx + z.w / 2, y1: z.cy + z.h / 2 };
+    for (const p of piezas) {
+      if (p.rol === "titulo" && comp.titular_detras) {
+        // efecto revista: el sujeto puede rozar el titular, no taparlo. Se mide con los pixeles reales del recorte
+        const tapado = cubierto(p.caja);
+        if (tapado > 0.22) problemas.push({ tipo: "titular_tapado", rol: p.rol, texto: p.texto, tapado: +tapado.toFixed(2) });
+        continue;
+      }
+      if (p.rol === "sticker") continue;  // un sello sobre la esquina del plato es intencional
+      if (cubierto(p.caja) > 0.12) problemas.push({ tipo: "sobre_sujeto", rol: p.rol, texto: p.texto });
+    }
+  }
+  return { problemas, piezas: piezas.map(p => ({ rol: p.rol, texto: p.texto, caja: Object.fromEntries(Object.entries(p.caja).map(([k, v]) => [k, +v.toFixed(4)])) })) };
+}
+iniciar().catch(e => { document.body.textContent = e.message; throw e; });
+</script>
+</body>
+</html>

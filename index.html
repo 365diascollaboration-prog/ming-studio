@@ -1,0 +1,926 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ming Studio</title>
+<style>
+  :root { --bg:#0f1115; --card:#181b22; --line:#2a2f3a; --txt:#e8eaf0; --mut:#8b92a3; --acc:#ff6b4a; --ok:#4ade80; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:15px/1.45 system-ui, sans-serif; background:var(--bg); color:var(--txt); }
+  main { max-width:1200px; margin:auto; padding:20px 16px; display:grid; gap:24px; grid-template-columns:400px 1fr; align-items:start; }
+  @media (max-width:860px) { main { grid-template-columns:1fr; } }
+  h1 { margin:0; font-size:22px; } h1 span { color:var(--acc); }
+  .top { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
+  .mut { color:var(--mut); font-size:13px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; }
+  label, .lbl { display:block; margin:14px 0 6px; font-size:13px; color:var(--mut); }
+  .card > :first-child > :first-child, .card > label:first-child { margin-top:0; }
+  input, textarea { width:100%; padding:10px; background:#0c0e12; color:var(--txt); border:1px solid var(--line); border-radius:10px; font:inherit; }
+  textarea { min-height:96px; resize:vertical; }
+  input:focus, textarea:focus { outline:2px solid var(--acc); outline-offset:-1px; }
+  button { padding:10px 14px; border-radius:10px; font:inherit; font-weight:600; cursor:pointer; background:#0c0e12; color:var(--txt); border:1px solid var(--line); }
+  button:focus-visible { outline:2px solid var(--acc); }
+  [hidden] { display:none !important; }
+
+  #keyOk { font-size:13px; color:var(--mut); background:none; border:0; padding:4px 0; font-weight:400; }
+  #keyOk b { color:var(--ok); font-weight:600; }
+  .row { display:flex; gap:6px; }
+
+  .modes { display:flex; gap:6px; margin-bottom:12px; }
+  .modes button { flex:1; color:var(--mut); }
+  .modes button.on { background:var(--acc); color:#fff; border-color:var(--acc); }
+
+  select.full { width:100%; padding:10px; background:#0c0e12; color:var(--txt); border:1px solid var(--line); border-radius:10px; font:inherit; }
+  .swatches { display:flex; gap:4px; margin-top:6px; min-height:18px; }
+  .swatches i { width:18px; height:18px; border-radius:50%; border:1px solid rgba(255,255,255,.2); }
+  #kit { margin-top:10px; padding:12px; background:#0c0e12; border:1px solid var(--acc); border-radius:12px; }
+  #kit label { margin-top:10px; }
+  #kit input, #kit textarea { background:var(--card); }
+  #kit textarea { min-height:54px; }
+  .colores { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+  .colores span { display:flex; align-items:center; gap:2px; }
+  .colores input[type=color] { width:38px; height:34px; padding:2px; cursor:pointer; }
+  .colores button { padding:2px 7px; font-size:12px; }
+  .kitbtns { display:flex; gap:6px; margin-top:12px; }
+  .kitbtns .ok { flex:1; background:var(--acc); border-color:var(--acc); color:#fff; }
+  .motor { margin-top:12px; padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:#0c0e12; }
+  .motor .chk { margin-top:0; }
+  .motor .sub { margin:6px 0 0 26px; font-size:13px; color:var(--mut); }
+  .motor .chk.sub { margin-top:6px; }
+  #editor { width:min(96vw, 1100px); height:94vh; padding:0; border:1px solid var(--line); border-radius:14px; background:#0c0e12; color:var(--txt); }
+  #editor::backdrop { background:rgba(0,0,0,.8); }
+  #editor .head { display:flex; gap:8px; align-items:center; padding:10px 14px; border-bottom:1px solid var(--line); }
+  #editor .head span { margin-right:auto; font-size:13px; color:var(--mut); }
+  #editor iframe { width:100%; height:calc(94vh - 56px); border:0; display:block; }
+  #editor .ok { background:var(--acc); border-color:var(--acc); color:#fff; }
+  #estilos { width:min(96vw, 1200px); max-height:94vh; padding:0; border:1px solid var(--line); border-radius:14px; background:#0c0e12; color:var(--txt); }
+  #estilos::backdrop { background:rgba(0,0,0,.8); }
+  #estilos .head { display:flex; gap:8px; align-items:center; padding:10px 14px; border-bottom:1px solid var(--line); }
+  #estilos .head span { margin-right:auto; font-size:13px; color:var(--mut); }
+  #estilosGrid { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:12px; padding:14px; }
+  #estilosGrid figure { margin:0; background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden; display:flex; flex-direction:column; }
+  #estilosGrid figure.actual { border-color:var(--ok); }
+  #estilosGrid img { width:100%; display:block; background:#000; }
+  #estilosGrid figcaption { display:flex; gap:6px; align-items:center; padding:8px; font-size:13px; margin-top:auto; }
+  #estilosGrid figcaption b { margin-right:auto; }
+  #estilosGrid .usar { background:var(--acc); border-color:var(--acc); color:#fff; padding:6px 10px; }
+  .tag, .bar button { white-space:nowrap; }
+  .tag { font-size:11px; color:var(--ok); border:1px solid var(--ok); border-radius:6px; padding:1px 5px; margin-right:auto; }
+  #k_logoPrev { max-height:48px; margin-top:6px; display:block; background:repeating-conic-gradient(#2a2f3a 0 25%, #1c2029 0 50%) 0 0/10px 10px; border-radius:6px; }
+  .chips { display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; }
+  .seg { display:flex; flex-wrap:wrap; gap:4px; }
+  .seg button { padding:5px 9px; font-size:12px; font-weight:500; color:var(--mut); border-radius:8px; }
+  .seg button.on { border-color:var(--acc); color:var(--txt); background:#2a1712; }
+  .chips .fuerte { position:relative; }
+  .chips .fuerte::after { content:"★"; position:absolute; top:3px; right:5px; font-size:9px; color:var(--acc); }
+  .chips button { padding:8px 2px; font-size:11px; font-weight:500; color:var(--mut); display:flex; flex-direction:column; align-items:center; gap:2px; }
+  .chips button span { font-size:20px; }
+  .chips button.on { border-color:var(--acc); color:var(--txt); background:#2a1712; }
+  .ej { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .ej button { padding:4px 10px; font-size:12px; font-weight:400; color:var(--mut); border-radius:20px; text-align:left; }
+  .chk { display:flex; gap:8px; align-items:center; margin-top:12px; font-size:14px; color:var(--txt); cursor:pointer; }
+  .chk input { width:auto; }
+
+  .go { width:100%; margin-top:16px; background:var(--acc); border-color:var(--acc); color:#fff; font-size:17px; padding:14px; }
+  .hint { text-align:center; margin-top:6px; }
+  #plan { margin-top:12px; padding:10px 12px; border-left:3px solid var(--acc); background:#0c0e12; border-radius:8px; font-size:13px; }
+  #msg { margin-top:8px; font-size:13px; }
+  .err { color:#ff8080 !important; }
+  details { margin-top:14px; font-size:13px; color:var(--mut); }
+  details summary { cursor:pointer; }
+  details ul { padding-left:18px; margin:6px 0; }
+  details textarea { font:12px/1.4 ui-monospace, monospace; min-height:140px; margin-top:6px; }
+
+  #gal { display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:14px; }
+  figure { margin:0; border-radius:12px; overflow:hidden; border:1px solid var(--line); background:var(--card); }
+  .ph { display:grid; place-items:center; background:repeating-conic-gradient(#2a2f3a 0 25%, #1c2029 0 50%) 0 0/16px 16px; }
+  .ph.cargando { aspect-ratio:1; }
+  .ph img { width:100%; height:auto; display:block; cursor:zoom-in; }
+  .bar .del.seguro, #kitBorrar.seguro, #serieBorrar.seguro, #bib .del.seguro { background:#b91c1c; border-color:#b91c1c; color:#fff; }
+  #zip { color:var(--acc); }
+  #gal { align-items:start; }
+  .wait { text-align:center; color:var(--txt); font-size:13px; padding:16px; background:rgba(15,17,21,.85); border-radius:10px; }
+  .spin { width:34px; height:34px; border:3px solid var(--line); border-top-color:var(--acc); border-radius:50%; animation:g 1s linear infinite; margin:0 auto 10px; }
+  @keyframes g { to { transform:rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spin { animation-duration:3s; } }
+  .bar { display:flex; gap:6px; padding:8px 8px 0; align-items:center; }
+  .bar:last-of-type { padding-bottom:8px; }
+  .bar select { flex:1; padding:7px; background:#0c0e12; color:var(--txt); border:1px solid var(--line); border-radius:8px; font:inherit; font-size:13px; }
+  .bar button { padding:7px 10px; font-size:13px; }
+  .bar .dl { background:var(--acc); border-color:var(--acc); color:#fff; }
+  .bar button.on { background:var(--acc); border-color:var(--acc); }
+  .score { margin-right:auto; font-size:12px; color:var(--mut); cursor:help; }
+  .nota { padding:8px; }
+  .funciones { display:flex; gap:16px; flex-wrap:wrap; margin-bottom:10px; font-size:13px; color:var(--mut); }
+  .funciones .chk { margin:0; }
+  /* interruptores apagados: la app queda como fabrica de arte limpio */
+  body.sin-capas .modes { display:none; }
+  body.sin-texto .motor, body.sin-texto #serieBox, body.sin-texto .bar .edit, body.sin-texto .bar .estilo,
+  body.sin-texto .bar .hacerserie, body.sin-texto .serieform { display:none !important; }
+  .nota input { padding:7px; font-size:13px; }
+  .galhead { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
+  .galhead .lbl, .galhead label { margin:0; }
+  .galhead label { display:flex; gap:6px; align-items:center; cursor:pointer; font-size:13px; color:var(--mut); white-space:nowrap; }
+  .galhead input { width:auto; margin:0; }
+  .empty { color:var(--mut); text-align:center; padding:60px 20px; border:1px dashed var(--line); border-radius:14px; }
+  .vistas { display:flex; gap:6px; margin-bottom:10px; }
+  .vistas button { padding:6px 12px; font-size:13px; color:var(--mut); }
+  .vistas button.on { background:var(--acc); border-color:var(--acc); color:#fff; }
+  .bibbar { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:10px; }
+  .bibbar button, .bibbar select { padding:6px 10px; font-size:13px; }
+  .bibbar select { background:#0c0e12; color:var(--txt); border:1px solid var(--line); border-radius:8px; font:inherit; font-size:13px; }
+  .bibbar .seg { margin-right:auto; }
+  #bib { display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:12px; align-items:start; }
+  #bib figure.revisar { border-color:#f59e0b; }
+  #bib .ficha { padding:8px; display:grid; grid-template-columns:minmax(0, 1fr); gap:6px; }
+  #bib .ficha input, #bib .ficha select { padding:6px; font-size:12px; border-radius:8px; min-width:0; }
+  #bib .ficha select { flex:1; background:#0c0e12; color:var(--txt); border:1px solid var(--line); font:inherit; font-size:12px; }
+  #bib .acc { display:flex; gap:6px; }
+  #bib .acc .ok { flex:1; background:var(--ok); border-color:var(--ok); color:#06210f; }
+  #bib .acc button { padding:6px 8px; font-size:12px; }
+  .star { display:flex; gap:4px; padding:8px 8px 0; }
+  .star button { flex:1; padding:6px 4px; font-size:12px; }
+  #lb { position:fixed; inset:0; background:rgba(0,0,0,.88); display:flex; align-items:center; justify-content:center; padding:16px; cursor:zoom-out; z-index:9; }
+  #lb img { max-width:100%; max-height:100%; }
+</style>
+</head>
+<body>
+<main>
+  <section>
+    <div class="top">
+      <h1>Ming <span>Studio</span></h1>
+      <button id="keyOk" hidden>🔑 <b>Key lista</b> · cambiar</button>
+    </div>
+
+    <div class="card" id="keyBox" style="margin-bottom:14px">
+      <label for="key">Pega tu key de OpenRouter para empezar</label>
+      <div class="row">
+        <input type="password" id="key" placeholder="sk-or-v1-..." autocomplete="off">
+        <button id="keySave">Guardar</button>
+      </div>
+      <div class="mut" style="margin-top:6px">Se queda solo en este navegador. ¿No tienes? Créala en <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai/keys</a>.</div>
+    </div>
+
+    <div class="card" id="upd" hidden style="margin-bottom:14px">
+      <div class="row" style="align-items:center;justify-content:space-between">
+        <span id="updTxt"></span>
+        <button id="updGo">Actualizar</button>
+      </div>
+    </div>
+
+    <div class="funciones" role="group" aria-label="Funciones">
+      <label class="chk"><input type="checkbox" id="fTexto"> ✏️ Diseño con texto</label>
+      <label class="chk"><input type="checkbox" id="fCapas"> 🧩 Diseño por capas</label>
+    </div>
+    <div class="modes">
+      <button data-mode="crear" class="on">✨ Crear</button>
+      <button data-mode="capas">🧩 Separar en capas</button>
+    </div>
+
+    <div class="card">
+      <div data-pane="crear">
+        <label for="marca">Marca</label>
+        <div class="row">
+          <select id="marca" class="full"></select>
+          <button type="button" id="marcaEdit" title="Editar marca" aria-label="Editar marca">✏️</button>
+          <button type="button" id="marcaNueva" title="Nueva marca" aria-label="Nueva marca">➕</button>
+        </div>
+        <div class="swatches" id="marcaColores"></div>
+        <div id="serieBox" hidden>
+          <label for="serie">Serie</label>
+          <div class="row">
+            <select id="serie" class="full"></select>
+            <button type="button" id="serieBorrar" title="Borrar serie" aria-label="Borrar serie" hidden>🗑</button>
+          </div>
+          <div class="mut" id="serieInfo" style="margin-top:6px"></div>
+        </div>
+
+        <div id="kit" hidden>
+          <strong id="kitTitulo">Nueva marca</strong>
+          <label for="k_nombre">Nombre (se escribe así en los diseños)</label><input id="k_nombre" placeholder="Sabor Latino">
+          <label for="k_rubro">¿A qué se dedica?</label><input id="k_rubro" placeholder="Restaurante de comida caribeña en Puerto Rico">
+          <div class="lbl">Colores de la marca</div>
+          <div class="colores" id="k_colores"></div>
+          <label for="k_logo">Logo oficial (PNG sin fondo ideal): el motor lo pone tal cual en tus diseños</label><input type="file" id="k_logo" accept="image/*">
+          <img id="k_logoPrev" alt="Logo de la marca" hidden>
+          <button type="button" id="k_sacar" hidden style="margin-top:6px;font-size:12px;padding:5px 10px">🎨 Reemplazar mis colores por los del logo</button>
+          <label for="k_tipos">Tipografías</label><input id="k_tipos" placeholder="Títulos: Montserrat Black. Textos: Poppins">
+          <label for="k_tono">Tono de voz</label><input id="k_tono" placeholder="Alegre, familiar, orgullo boricua">
+          <label for="k_estilo">Estilo visual</label><textarea id="k_estilo" placeholder="Fotos de comida reales y cálidas, hojas tropicales, texturas de madera"></textarea>
+          <label for="k_datos">Datos fijos (contacto)</label><input id="k_datos" placeholder="555-0123 · @saborlatino · saborlatino.com">
+          <label for="k_evitar">Nunca usar</label><input id="k_evitar" placeholder="Colores neón, estilo infantil">
+          <div class="kitbtns">
+            <button type="button" class="ok" id="kitGuardar">Guardar marca</button>
+            <button type="button" id="kitCancelar">Cancelar</button>
+            <button type="button" id="kitBorrar" title="Borrar marca" aria-label="Borrar marca">🗑</button>
+          </div>
+        </div>
+
+        <div class="lbl">¿Qué diseñamos?</div>
+        <div class="chips" id="chips"></div>
+
+        <label for="idea">Tu idea (pon entre comillas el texto exacto que debe salir)</label>
+        <textarea id="idea"></textarea>
+        <div class="ej" id="ej"></div>
+
+        <div class="lbl">Formato</div>
+        <div class="seg" id="formato"></div>
+        <div class="lbl">Estilo</div>
+        <div class="seg" id="estilo"></div>
+
+        <div class="motor">
+          <label class="chk"><input type="checkbox" id="hibrido" checked> <b>Texto garantizado</b>&nbsp;(motor híbrido)</label>
+          <div class="sub">Ming pinta solo el arte (fondo y personaje, sin una letra). Todo el texto y tu logo los pone el motor: exactos y editables.</div>
+          <label class="chk sub"><input type="checkbox" id="lettering" checked> <b>Titular artístico</b>&nbsp;(Ming lo rotula si es corto; el Director revisa la ortografía y si falla usa una letra del catálogo)</label>
+        </div>
+        <label class="chk"><input type="checkbox" id="rgba"> Fondo transparente</label>
+      </div>
+
+      <div data-pane="capas" hidden>
+        <label for="img">Sube un diseño plano (PNG o JPG)</label>
+        <input type="file" id="img" accept="image/*">
+        <label for="ncapas">¿En cuántas capas?</label>
+        <input type="number" id="ncapas" value="4" min="2" max="10">
+        <div class="mut" style="margin-top:6px">El Director mira tu diseño y describe cada capa en el formato oficial de Ming.</div>
+      </div>
+
+      <button class="go" id="go">✨ Crear diseño</button>
+      <div class="mut hint">o Ctrl + Enter · puedes lanzar varios a la vez</div>
+      <div id="msg" class="mut" role="status"></div>
+      <div id="plan" hidden></div>
+
+      <details id="adv">
+        <summary>Avanzado: ver o escribir el prompt</summary>
+        <textarea id="prompt" placeholder="Si escribes aquí, se usa tu prompt tal cual y el Director no interviene."></textarea>
+      </details>
+      <details id="lecc"><summary>Lo que el Director ha aprendido</summary><ul></ul></details>
+    </div>
+  </section>
+
+  <section>
+    <div class="vistas"><button type="button" data-vista="gal" class="on">🖼 Diseños</button><button type="button" data-vista="bib">📚 Biblioteca</button></div>
+    <div class="galhead"><span class="lbl" id="galTitulo">Tus diseños</span>
+      <label><input type="checkbox" id="verTodas"> Ver todas las marcas</label></div>
+    <div data-v="gal">
+      <div id="gal"></div>
+      <div class="empty" id="empty">Aquí van a salir tus diseños ✨</div>
+    </div>
+    <div data-v="bib" hidden>
+      <div class="bibbar">
+        <div class="seg" id="bibTipo"></div>
+        <select id="bibSubirTipo" aria-label="Tipo de pieza a subir"></select>
+        <button type="button" id="bibSubir">⬆ Subir</button>
+        <input type="file" id="bibArchivo" accept="image/*" multiple hidden>
+        <button type="button" id="bibImportar" title="Los diseños viejos entran a 'Por revisar'; tú decides qué se queda">📥 Importar lo viejo</button>
+      </div>
+      <div id="bib"></div>
+      <div class="empty" id="bibVacia" hidden></div>
+    </div>
+  </section>
+</main>
+<div id="lb" hidden><img alt="Vista grande"></div>
+<dialog id="estilos" aria-label="Probar estilos">
+  <div class="head"><div class="seg" id="estilosModo"><button type="button" data-m="kits">🎨 Kits</button><button type="button" data-m="letras">🔤 Letras</button><button type="button" data-m="layouts">📐 Layouts</button></div>
+    <span id="estilosMsg">🎨 El mismo diseño con otros kits. Gratis: no se vuelve a generar el arte.</span>
+    <button type="button" id="estilosOrig" hidden>↩ Layout original</button>
+    <button type="button" id="letraKit" hidden>↩ Letra del kit</button>
+    <button type="button" id="letraMing" hidden>🖌 Lettering de Ming</button>
+    <button type="button" id="estilosMas">Ver 3 más</button>
+    <button type="button" id="estilosCerrar">Cerrar</button></div>
+  <div id="estilosGrid"></div>
+</dialog>
+<dialog id="editor" aria-label="Editar texto del diseño">
+  <div class="head"><span>✏️ Toca cualquier texto para cambiarlo. Se guarda solo y la imagen se redibuja sin gastar.</span>
+    <button type="button" class="ok" id="editorListo">Listo</button></div>
+  <iframe id="editorFrame" title="Lienzo editable"></iframe>
+</dialog>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const MING = "inclusionai/ming-image-0.1-design";
+const RGBA = "RGBA, 4-channel, transparent background. ";
+const store = { get: k => { try { return localStorage.getItem(k) || ""; } catch { return ""; } },
+                set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
+
+// icono + nombre corto + ejemplos por categoria (las reglas de experto viven en agente.py)
+const ICONOS = { tipografia: "🔤", cartel: "🪧", flyer: "📄", musica: "🎵", pelicula: "🎬", web: "💻", evento: "🎤", historia: "📱", post: "🖼️", producto: "📦", logo: "✒️", infografia: "📊" };
+const CORTO = { tipografia: "Tipografía", cartel: "Cartel", flyer: "Flyer", musica: "Música", pelicula: "Película", web: "Web", evento: "Evento", historia: "Historia", post: "Post", producto: "Producto", logo: "Logo", infografia: "Infografía" };
+const EJEMPLOS = {
+  tipografia: ['Frase "NO PARES HASTA QUE TE SALGA" estilo urbano, letras enormes', 'Cartel "Hecho en Puerto Rico" con orgullo boricua, retro'],
+  cartel: ['Valla de Sabor Latino "EL SABOR QUE TE LLAMA", mofongo gigante, @saborlatino', 'Pendón roll-up de 365 Collaboration para feria de negocios'],
+  flyer: ['Sabor Latino, "2x1 LOS MARTES" en mofongo, "Reserva al 555-0123"', 'Barbería "EL PANA", corte + barba $15'],
+  musica: ['Single "Fuego Lento" de Nanoboy, reggaetón oscuro, neón rojo en San Juan', 'Álbum de salsa "Brisa Vieja", estilo retro años 70'],
+  pelicula: ['Thriller "La Última Llamada", teléfono antiguo sonando en la oscuridad', 'Comedia familiar "Mi Abuela la Youtuber"'],
+  web: ['Landing de Gerent365, software para restaurantes, botón "Prueba gratis"', 'Web de un gym "Hierro Latino"'],
+  evento: ['Concierto "Noche Boricua" 15 de diciembre, Coliseo, headliner Nanoboy', 'Taller "IA para Negocios" gratis, sábado 10am'],
+  historia: ['Oferta relámpago "SOLO HOY 30% OFF", CTA "Desliza"', 'Nuevo episodio del podcast "365 Días"'],
+  post: ['Frase "Cada día cuenta" para 365 Collaboration', 'Lanzamiento de app nueva'],
+  producto: ['Salsa picante "Fuego Boricua" sobre madera', 'Perfume "Noche" con fondo de terciopelo'],
+  logo: ['Logo para café "La Esquina", cálido y artesanal', 'Logo tech para "Kituroto", minimal'],
+  infografia: ['"5 pasos para vender por WhatsApp"', 'Comparativa "Plan Básico vs Pro"'],
+};
+let cat = store.get("cat") || "tipografia";
+const FUERTES = new Set(["tipografia", "cartel"]);  // donde Ming mas brilla
+const FORMATOS = [["auto", "Auto"], ["1:1", "1:1"], ["4:5", "4:5"], ["3:4", "3:4"], ["2:3", "2:3"], ["9:16", "9:16 Story"], ["16:9", "16:9 Valla"]];
+const ESTILOS = [["auto", "Auto"], ["limpio", "Limpio"], ["calido", "Cálido"], ["oscuro", "Oscuro"], ["bold", "Bold"]];
+const sel = { formato: store.get("formato") || "auto", estilo: store.get("estilo") || "auto" };
+function pintarSeg(id, opciones) {
+  $(id).innerHTML = opciones.map(([v, t]) => `<button type="button" data-v="${v}" aria-pressed="${sel[id] === v}" class="${sel[id] === v ? "on" : ""}">${t}</button>`).join("");
+  $(id).querySelectorAll("button").forEach(b => b.onclick = () => { sel[id] = b.dataset.v; store.set(id, sel[id]); pintarSeg(id, opciones); });
+}
+pintarSeg("formato", FORMATOS);
+pintarSeg("estilo", ESTILOS);
+let mode = "crear";
+let nombres = {};
+
+function pintarChips() {
+  $("chips").innerHTML = Object.keys(nombres).map(k =>
+    `<button type="button" data-cat="${k}" title="${esc(nombres[k])}" aria-pressed="${k === cat}" class="${k === cat ? "on" : ""} ${FUERTES.has(k) ? "fuerte" : ""}"><span aria-hidden="true">${ICONOS[k] || "✨"}</span>${CORTO[k] || k}</button>`).join("");
+  $("chips").querySelectorAll("button").forEach(b => b.onclick = () => { cat = b.dataset.cat; store.set("cat", cat); pintarChips(); });
+  $("ej").innerHTML = (EJEMPLOS[cat] || []).map(e => `<button type="button">💡 ${esc(e)}</button>`).join("");
+  $("ej").querySelectorAll("button").forEach((b, i) => b.onclick = () => { $("idea").value = EJEMPLOS[cat][i]; $("idea").focus(); });
+  $("idea").placeholder = EJEMPLOS[cat]?.[0] || "";
+  pintarLecciones();
+}
+
+// ---- key ----
+function keyUI() { const has = !!$("key").value.trim(); $("keyBox").hidden = has; $("keyOk").hidden = !has; }
+$("key").value = store.get("orKey");
+$("keySave").onclick = () => { store.set("orKey", $("key").value.trim()); keyUI(); };
+$("key").addEventListener("keydown", e => { if (e.key === "Enter") $("keySave").click(); });
+$("keyOk").onclick = () => { $("keyBox").hidden = false; $("keyOk").hidden = true; $("key").focus(); };
+keyUI();
+
+function amigable(e) {
+  e = String(e);
+  if (/401|User not found|Authentication/i.test(e)) return "La key no funciona. Revisa que esté bien pegada (🔑 arriba).";
+  if (/402|credit/i.test(e)) return "Tu cuenta de OpenRouter no tiene saldo para el Director.";
+  if (/429/.test(e)) return "OpenRouter está saturado. Espera un minuto y prueba otra vez.";
+  return e.length > 200 ? e.slice(0, 200) + "…" : e;
+}
+async function api(path, body) {
+  const r = await fetch(path, { method: "POST",
+    headers: { "Content-Type": "application/json", "X-OpenRouter-Key": $("key").value.trim() },
+    body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({ error: r.statusText }));
+  if (!r.ok) throw new Error(amigable(j.error || r.status));
+  return j;
+}
+
+// ---- actualizaciones ----
+fetch("/api/version").then(r => r.json()).then(v => {
+  if (!v.nueva) return;
+  $("updTxt").textContent = `🚀 Hay una versión nueva de Ming Studio (${v.nueva}). Tienes la ${v.local}.`;
+  $("upd").hidden = false;
+}).catch(() => {});
+$("updGo").onclick = async () => {
+  $("updGo").disabled = true; $("updTxt").textContent = "Actualizando… (puede tardar un par de minutos)";
+  try {
+    const r = await api("/api/actualizar", {});
+    $("updTxt").textContent = r.ok ? "✅ Listo. Cierra Ming Studio y ábrelo otra vez para usar la versión nueva."
+                                   : "No se pudo actualizar: " + r.error;
+  } catch (e) { $("updTxt").textContent = "No se pudo actualizar: " + e.message; }
+};
+
+// ---- modos ----
+document.querySelectorAll("[data-mode]").forEach(b => b.onclick = () => {
+  mode = b.dataset.mode;
+  document.querySelectorAll("[data-mode]").forEach(x => x.classList.toggle("on", x === b));
+  document.querySelectorAll("[data-pane]").forEach(p => p.hidden = p.dataset.pane !== mode);
+  $("go").textContent = mode === "capas" ? "🧩 Separar en capas" : "✨ Crear diseño";
+  $("adv").hidden = $("lecc").hidden = mode === "capas";
+});
+
+// interruptores: apagados, la app pide arte limpio (sin texto) y esconde el modo capas. Se recuerdan en este navegador
+function funciones() {
+  document.body.classList.toggle("sin-texto", !$("fTexto").checked);
+  document.body.classList.toggle("sin-capas", !$("fCapas").checked);
+  if (!$("fCapas").checked && mode === "capas") document.querySelector('[data-mode="crear"]').click();
+}
+$("fTexto").checked = store.get("fTexto") === "1";
+$("fCapas").checked = store.get("fCapas") === "1";
+["fTexto", "fCapas"].forEach(id => $(id).onchange = () => { store.set(id, $(id).checked ? "1" : "0"); funciones(); });
+funciones();
+
+function status(t, err) { $("msg").className = err ? "err" : "mut"; $("msg").textContent = t; }
+
+// ---- galeria ----
+const FMTS = ["png", "jpg", "webp", "pdf", "tiff", "bmp", "gif", "ico"].map(x => [x, x]);
+// hibrido: PNG 2x y PDF salen del motor con el texto nitido (vector en el PDF)
+const FMTS_HIB = [["png", "png"], ["png2x", "png 2x (nítido)"], ["pdf", "pdf (texto vectorial, imprenta)"], ["jpg", "jpg"], ["webp", "webp"], ["tiff", "tiff"], ["bmp", "bmp"], ["gif", "gif"], ["ico", "ico"]];
+const hibridos = new Set();
+// la galeria muestra solo los artes de la marca elegida (o todos con "Ver todas las marcas")
+function filtrarGal() {
+  const m = $("marca").value, todas = $("verTodas").checked;
+  const figs = [...$("gal").children];
+  figs.forEach(f => f.hidden = !todas && f.dataset.marca !== m);
+  const n = figs.filter(f => !f.hidden).length;
+  if (vista === "gal") $("galTitulo").textContent = todas ? `Tus diseños · todas las marcas (${n})` : `Tus diseños · ${marcasData[m]?.nombre || "sin marca"} (${n})`;
+  $("empty").hidden = n > 0;
+  $("empty").textContent = figs.length ? "Esta marca todavía no tiene diseños ✨" : "Aquí van a salir tus diseños ✨";
+}
+$("verTodas").onchange = () => { filtrarGal(); pintarBib(); };
+const f0hib = n => hibridos.has(n);
+function placeholder() {
+  $("empty").hidden = true;
+  const fig = document.createElement("figure");
+  fig.dataset.marca = $("marca").value;
+  fig.innerHTML = `<div class="ph cargando"><div class="wait"><div class="spin"></div><span>Empezando…</span></div></div>`;
+  $("gal").prepend(fig);
+  return fig;
+}
+function llenar(fig, f) {
+  const src = f.src, name = src.split("/").pop();
+  fig.dataset.file = name;
+  fig.dataset.marca = f.marca || "";
+  fig.innerHTML = `<div class="ph"><img src="/api/mini?f=${encodeURIComponent(name)}" alt="Diseño: ${esc(f.idea || name)}" loading="lazy"></div>
+    <div class="bar"><select aria-label="Formato">${(f.hibrido ? FMTS_HIB : FMTS).map(([v, t]) => `<option value="${v}">${t}</option>`).join("")}</select>
+      <button type="button" class="dl">Descargar</button>
+      <button type="button" class="del" aria-label="Borrar diseño" title="Borrar">🗑</button></div>
+    <div class="bar">${f.hibrido ? '<span class="tag" title="Texto exacto con tipografía real">✓ Texto exacto</span><button type="button" class="edit" title="Editar texto">✏️ Texto</button><button type="button" class="estilo" title="El mismo diseño en otros kits y layouts, gratis">🎨 Estilos</button><button type="button" class="estrella" title="Guardar fondo o plato en tu biblioteca" aria-label="Guardar en biblioteca">⭐</button><button type="button" class="hacerserie" title="Hacer serie de esto: misma cara cada semana" aria-label="Hacer serie de esto">📌</button>' : ""}${f.disenado ? '<span class="tag" title="Diseñado por el diseñador IA">✍️ Diseñado</span>' + (DISENADOR ? '<button type="button" class="disenar" title="Pedirle un cambio al diseñador">✍️ Retocar</button>' : "") : f.hibrido || !DISENADOR ? "" : '<button type="button" class="disenar" title="El diseñador IA pone los textos sobre este arte">✍️ Diseñar</button>'}</div>
+    <div class="nota serieform" hidden><input placeholder="Nombre de la serie (ej. Viernes de Salsa) y Enter" aria-label="Nombre de la serie">
+      <label class="chk" style="font-size:13px;margin-top:6px"><input type="checkbox"> Fondo fijo (el mismo fondo cada semana)</label></div>
+    <div class="star" hidden><button type="button" data-q="fondo">⭐ Fondo</button><button type="button" data-q="sujeto">⭐ Plato</button><button type="button" data-q="ambos">⭐ Ambos</button></div>
+    <div class="bar"><span class="score"></span>
+      ${f.prompt ? '<button type="button" class="otra" title="Mismo prompt, otra versión (sin esperar al Director)">🔁</button>' : ""}
+      ${f.prompt && f.categoria && f.categoria !== "capas" ? '<button type="button" class="fix" title="El Director corrige los defectos que vio y lo rehace" hidden>🛠 Corregir</button>' : ""}
+      <button type="button" data-r="1" aria-label="Me gusta">👍</button>
+      <button type="button" data-r="-1" aria-label="No me gusta">👎</button></div>
+    <div class="nota califica" hidden><input placeholder="¿Qué mejorarías? Enter para enseñarle al Director"></div>
+    <div class="nota disform" hidden><textarea placeholder="${f.disenado ? "¿Qué le cambio? (ej. titular más grande, quita el precio, logo abajo)" : "Textos que lleva la pieza: titular, fecha, precios, DJ, contacto…"}" aria-label="Textos para el diseñador"></textarea>
+      <button type="button" style="margin-top:6px;width:100%">${f.disenado ? "✍️ Retocar" : "✍️ Diseñar con IA"}</button></div>`;
+  fig.querySelector("img").onclick = () => { $("lb").querySelector("img").src = src; $("lb").hidden = false; };
+  if (f.hibrido) hibridos.add(name);
+  fig.querySelector(".edit")?.addEventListener("click", () => abrirEditor(name, fig));
+  fig.querySelector(".estilo")?.addEventListener("click", () => abrirEstilos(name, fig));
+  fig.querySelector(".disenar")?.addEventListener("click", () => {
+    const df = fig.querySelector(".disform"); df.hidden = !df.hidden;
+    if (!df.hidden) { const ta = df.querySelector("textarea"); if (!f.disenado && !ta.value && f.idea && f.categoria !== "capas") ta.value = f.idea; ta.focus(); }
+  });
+  fig.querySelector(".disform button").onclick = () => disenar(name, f, fig.querySelector(".disform textarea").value.trim());
+  fig.querySelector(".estrella")?.addEventListener("click", () => { const st = fig.querySelector(".star"); st.hidden = !st.hidden; });
+  fig.querySelector(".hacerserie")?.addEventListener("click", () => {
+    const sf = fig.querySelector(".serieform"); sf.hidden = !sf.hidden; if (!sf.hidden) sf.querySelector("input").focus();
+  });
+  fig.querySelector(".serieform input:not([type])")?.addEventListener("keydown", async e => {
+    if (e.key !== "Enter" || !e.target.value.trim()) return;
+    const sf = fig.querySelector(".serieform");
+    try {
+      const r = await api("/api/series/crear", { file: name, nombre: e.target.value.trim(), fondo_fijo: sf.querySelector("[type=checkbox]").checked });
+      seriesData = r.series; sf.hidden = true; e.target.value = "";
+      if (seriesData[r.id].marca === $("marca").value) { store.set("serie", r.id); }
+      pintarSeries(); if (sf.querySelector("[type=checkbox]").checked) cargarBib();
+      status(`📌 Serie "${seriesData[r.id].nombre}" creada. Elígela arriba en "Serie", escribe el especial de la semana y sale con la misma cara.`);
+    } catch (err) { status(err.message, true); }
+  });
+  fig.querySelectorAll(".star button").forEach(b => b.onclick = async () => {
+    fig.querySelector(".star").hidden = true;
+    status("⭐ Guardando en tu biblioteca… el Director le pone nombre.");
+    try {
+      const r = await api("/api/biblioteca/estrella", { file: name, que: b.dataset.q });
+      const nom = r.piezas.map(p => `${TIPOS_BIB[p.tipo] || p.tipo}: "${p.nombre || "sin nombre"}"`).join(" y ");
+      status(`⭐ En tu biblioteca: ${nom}.` + (r.faltan.length ? ` (Este diseño no tiene ${r.faltan.map(q => (TIPOS_BIB[q] || q).toLowerCase()).join(" ni ")} aparte.)` : ""));
+      cargarBib();
+    } catch (e) { status(e.message, true); }
+  });
+  fig.querySelector(".dl").onclick = () => location.href = `/api/dl?f=${encodeURIComponent(name)}&fmt=${fig.querySelector("select").value}`;
+  setScore(fig, f.puntaje, f.problemas);
+  const del = fig.querySelector(".del");
+  del.onclick = () => {
+    if (!del.classList.contains("seguro")) {  // doble clic para confirmar, sin ventanas emergentes
+      del.classList.add("seguro"); del.textContent = "¿Borrar?";
+      return setTimeout(() => { del.classList.remove("seguro"); del.textContent = "🗑"; }, 3000);
+    }
+    api("/api/borrar", { file: name }).then(() => { fig.remove(); filtrarGal(); })
+      .catch(e => status(e.message, true));
+  };
+  const fix = fig.querySelector(".fix");
+  if (fix) {
+    fix.hidden = !(f.puntaje || f.rating === -1);
+    fix.onclick = () => generar({ corregir: name, categoria: f.categoria, idea: f.idea, marca: f.marca });
+  }
+  if (f.prompt) fig.querySelector(".otra").onclick = () => generar({ prompt: f.prompt, categoria: f.categoria, idea: f.idea, marca: f.marca, desde: name });
+  let rating = f.rating;
+  const mark = () => fig.querySelectorAll("[data-r]").forEach(b => { b.classList.toggle("on", +b.dataset.r === rating); b.setAttribute("aria-pressed", +b.dataset.r === rating); });
+  mark();
+  const enviar = nota => api("/api/agente/calificar", { file: name, rating, nota })
+    .then(() => { if (nota) { status("✅ El Director aprendió de tu comentario."); cargarInfo(); } })
+    .catch(e => status(e.message, true));
+  fig.querySelectorAll("[data-r]").forEach(b => b.onclick = () => {
+    rating = +b.dataset.r; mark(); enviar("");
+    if (fix && rating === -1) fix.hidden = false;
+    fig.querySelector(".califica").hidden = false; fig.querySelector(".califica input").focus();
+  });
+  fig.querySelector(".califica input").addEventListener("keydown", e => {
+    if (e.key !== "Enter") return;
+    const n = e.target.value.trim(); fig.querySelector(".califica").hidden = true;
+    if (n) enviar(n);
+  });
+}
+function setScore(fig, p, problemas) {
+  const s = fig.querySelector(".score");
+  if (!s) return;
+  s.textContent = p ? `Director: ${p}/10` : "";
+  s.title = (problemas || []).join("\n\n");
+}
+function revisar(fig) {
+  // segundo plano: el puntaje aparece solo, no bloquea nada
+  const s = fig.querySelector(".score");
+  s.textContent = "Director revisando…";
+  api("/api/agente/critica", { file: fig.dataset.file })
+    .then(c => { setScore(fig, c.puntaje, c.problemas); const fx = fig.querySelector(".fix"); if (fx) fx.hidden = false; cargarInfo(); })
+    .catch(() => s.textContent = "");
+}
+
+// ---- generar (se pueden lanzar varios en paralelo) ----
+async function generar(pre) {
+  if (!$("key").value.trim()) { $("keyBox").hidden = false; $("key").focus(); return status("Primero pega tu key de OpenRouter.", true); }
+  const manual = $("prompt").value.trim();
+  const idea = $("idea").value.trim();
+  if (!pre && mode === "crear" && !manual && !idea) { $("idea").focus(); return status("Cuéntame tu idea primero 🙂", true); }
+  if (!pre && mode === "capas" && !$("img").files[0]) return status("Sube una imagen primero.", true);
+
+  const fig = placeholder();
+  let fase = "Preparando…";
+  const t0 = Date.now(), span = fig.querySelector(".wait span");
+  const tick = setInterval(() => span.textContent = `${fase} ${Math.round((Date.now() - t0) / 1000)}s`, 500);
+  status("");
+  try {
+    const body = { model: MING, marca: $("marca").value };
+    if (pre?.corregir) {
+      fase = "1/2 El Director corrige…";
+      const j = await api("/api/agente/corregir", { file: pre.corregir });
+      $("plan").hidden = !j.plan; $("plan").textContent = "🛠 " + j.plan;
+      Object.assign(body, { prompt: j.prompt, categoria: pre.categoria, idea: pre.idea, marca: pre.marca, desde: pre.corregir });
+    } else if (pre) Object.assign(body, pre);
+    else if (mode === "capas") {
+      body.image = await new Promise((ok, ko) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = ko; r.readAsDataURL($("img").files[0]); });
+      fase = "1/2 El Director estudia las capas…";
+      const c = await api("/api/agente/capas", { image: body.image, n: +$("ncapas").value });
+      Object.assign(body, { model: "inclusionai/ming-image-0.1-design-layer", prompt: c.prompt, categoria: "capas", idea: "capas" });
+    } else if (manual) {
+      Object.assign(body, { prompt: ($("rgba").checked ? RGBA : "") + manual, categoria: cat, idea: idea || "(prompt manual)" });
+    } else {
+      fase = "1/2 El Director escribe…";
+      const texto = $("fTexto").checked;
+      const serie = texto && !$("serieBox").hidden ? $("serie").value : "";
+      const j = await api("/api/agente/prompt", { categoria: cat, idea, formato: sel.formato, estilo: sel.estilo, marca: $("marca").value,
+        hibrido: texto && (($("hibrido").checked && !$("rgba").checked) || !!serie), rgba: serie ? false : $("rgba").checked,
+        lettering: texto && $("lettering").checked, serie, solo_arte: !texto });
+      $("plan").hidden = !j.plan; $("plan").textContent = "🎬 " + j.plan;
+      Object.assign(body, { prompt: j.prompt, categoria: cat, idea, marca: $("marca").value, hibrido: j.hibrido });
+    }
+    if (!$("fTexto").checked && body.model === MING && !body.hibrido) body.solo_arte = true;  // si Ming cuela letras, se repinta
+    fase = body.model !== MING ? "2/2 Separando capas…" : (pre && !pre.corregir) || manual ? "Pintando…" : "2/2 Pintando…";
+    const j = await api("/api/gen", body);
+    const avisos = [];
+    if (body.solo_arte && j.reintentos_por_texto?.length) avisos.push(`🧽 Ming coló letras ${j.reintentos_por_texto.length} ${j.reintentos_por_texto.length > 1 ? "veces" : "vez"} y lo repinté limpio.`);
+    if (j.titular) avisos.push(j.titular.ming ? `🖌 Ming rotuló el titular "${j.titular.esperado}" y el Director confirmó la ortografía.`
+      : `🔤 El titular va con letra del catálogo: Ming no lo escribió exacto${j.titular.leidos.length ? ` (escribió "${j.titular.leidos.at(-1)}")` : ""}.`);
+    const bib = j.biblioteca;
+    if (bib?.reusado.length) avisos.push(`♻ Reusé de tu biblioteca: ${bib.reusado.map(n => `"${n}"`).join(", ")}.`);
+    if (bib?.nuevo.length && piezas.some(p => p.marca === body.marca && p.estado === "ok"))
+      avisos.push(`✨ ${bib.nuevo.map(k => k === "sujeto" ? "El plato" : "El fondo").join(" y ")} ${bib.nuevo.length > 1 ? "son nuevos" : "es nuevo"}: si te gusta, dale ⭐ para guardarlo.`);
+    if (avisos.length) status(avisos.join(" "));
+    j.files.forEach((src, i) => {
+      const f = i === 0 ? fig : placeholder();
+      llenar(f, { src, prompt: body.model === MING ? body.prompt : "", categoria: body.categoria, idea: body.idea, marca: body.marca, hibrido: !!(body.hibrido || body.desde && f0hib(body.desde)) });
+      if (body.categoria && body.categoria !== "capas") revisar(f);
+    });
+    if (body.categoria === "capas") {
+      const q = j.files.map(f => "f=" + encodeURIComponent(f.split("/").pop())).join("&");
+      $("msg").className = "mut";
+      $("msg").innerHTML = `✅ ${j.files.length} capas listas. <a id="zip" href="/api/zip?${q}">Descargar todas en ZIP</a>`;
+    }
+  } catch (e) {
+    fig.remove();
+    filtrarGal();
+    status(e.message, true);
+  } finally { clearInterval(tick); }
+}
+// disenador IA: arte limpio + textos -> pieza terminada (o retoque de una ya disenada con una nota)
+async function disenar(name, f, texto) {
+  if (!$("key").value.trim()) { $("keyBox").hidden = false; $("key").focus(); return status("Primero pega tu key de OpenRouter.", true); }
+  if (!texto) return status(f.disenado ? "Escribe qué le cambio 🙂" : "Escribe los textos que lleva la pieza 🙂", true);
+  const fig = placeholder();
+  fig.dataset.marca = f.marca || $("marca").value;
+  const t0 = Date.now(), span = fig.querySelector(".wait span");
+  const tick = setInterval(() => span.textContent = `✍️ ${f.disenado ? "Retocando" : "Diseñando"}… ${Math.round((Date.now() - t0) / 1000)}s`, 500);
+  status("");
+  try {
+    const j = await api("/api/disenar", f.disenado ? { desde: name, nota: texto } : { file: name, brief: texto, marca: f.marca || $("marca").value });
+    llenar(fig, { src: j.files[0], marca: j.meta.marca, idea: j.meta.brief, categoria: "diseno", disenado: true });
+    status(`✍️ Listo en ${j.meta.segundos}s · ${j.meta.revisiones ? `se corrigió solo ${j.meta.revisiones} vez` : "salió bien a la primera"} · costo $${j.meta.costo.toFixed(3)}`);
+  } catch (e) { fig.remove(); filtrarGal(); status(e.message, true); }
+  finally { clearInterval(tick); }
+}
+$("go").onclick = () => generar();
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") $("lb").hidden = true;
+  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) generar();
+});
+$("lb").onclick = () => $("lb").hidden = true;
+
+// ---- memoria ----
+let info = { lecciones: {} };
+function pintarLecciones() {
+  const v2 = $("hibrido").checked && !$("rgba").checked ? ":v2" : "";  // el modo hibrido tiene su propia libreta
+  const l = [...(info.lecciones[cat + v2] || []), ...(info.lecciones["general" + v2] || [])];
+  $("lecc").querySelector("summary").textContent = `Lo que el Director ha aprendido de ${CORTO[cat] || cat} (${l.length})`;
+  $("lecc").querySelector("ul").innerHTML = l.length ? l.map(x => `<li>${esc(x)}</li>`).join("") : "<li>Nada aún: crea y califica diseños para enseñarle.</li>";
+}
+async function cargarInfo() {
+  info = await (await fetch("/api/agente/info")).json();
+  if (!Object.keys(nombres).length) { nombres = info.categorias; if (!nombres[cat]) cat = "tipografia"; pintarChips(); }
+  else pintarLecciones();
+}
+
+// ---- probar estilos: mismo arte, otros kits (solo re-render, sin Ming) ----
+// dos pestañas: "kits" (tipografia y color) y "layouts" (reticulas: donde va cada cosa)
+let estilosDe = null;
+function abrirEstilos(name, fig, modo = "kits") {
+  estilosDe = { name, fig, vistos: [], modo };
+  document.querySelectorAll("#estilosModo button").forEach(b => { b.classList.toggle("on", b.dataset.m === modo); b.setAttribute("aria-pressed", b.dataset.m === modo); });
+  $("estilosMas").hidden = modo === "layouts";
+  $("estilosOrig").hidden = true;
+  $("letraKit").hidden = true;
+  $("letraMing").hidden = true;
+  const g = $("estilosGrid"); g.innerHTML = "";
+  const f = document.createElement("figure"); f.className = "actual";
+  f.innerHTML = `<img src="${fig.querySelector(".ph img").src}" alt="Diseño actual"><figcaption><b>Actual</b></figcaption>`;
+  g.append(f);
+  if (!$("estilos").open) $("estilos").showModal();
+  masEstilos();
+}
+async function masEstilos() {
+  const e = estilosDe; if (!e) return;
+  const m = e.modo, btn = $("estilosMas"); btn.disabled = true;
+  const ico = { kits: "🎨", letras: "🔤", layouts: "📐" }[m];
+  const t0 = Date.now(); $("estilosMsg").textContent = { kits: "🎨 Dibujando 3 estilos…", letras: "🔤 Probando 3 letras…", layouts: "📐 Acomodando 5 layouts…" }[m];
+  try {
+    const r = m === "layouts" ? await api("/api/reticulas", { file: e.name })
+      : await api(m === "kits" ? "/api/estilos" : "/api/letras", { file: e.name, vistos: e.vistos });
+    if (estilosDe !== e) return;  // cerraron, cambiaron de pestaña o abrieron otro mientras dibujaba
+    for (const p of r.previas) {
+      if (m !== "layouts") e.vistos.push(p.kit || p.letra);
+      const f = document.createElement("figure");
+      f.innerHTML = `<img src="${p.src}" alt="${esc(p.nombre)}"><figcaption><b>${esc(p.nombre)}</b>${p.grupo ? ` <small>${esc(p.grupo)}</small>` : ""}<button type="button" class="usar">Usar este</button></figcaption>`;
+      f.querySelector(".usar").onclick = () => usarEstilo(p);
+      $("estilosGrid").append(f);
+    }
+    $("estilosMsg").textContent = `${ico} Listo en ${((Date.now() - t0) / 1000).toFixed(1)} s. Gratis: no se volvió a generar el arte.`;
+    btn.disabled = !r.quedan;
+    $("estilosOrig").hidden = m !== "layouts" || !r.hay_orig;
+    $("letraKit").hidden = m !== "letras" || !r.actual;
+    $("letraMing").hidden = m !== "letras" || !r.ming || r.ming_activo;
+  } catch (err) { $("estilosMsg").textContent = err.message; btn.disabled = false; }
+}
+async function usarEstilo(p) {
+  const { name, fig } = estilosDe;
+  $("estilos").close(); estilosDe = null;
+  status(`Aplicando ${p.nombre}…`);
+  try {
+    if (p.kit) await api("/api/estilos/usar", { file: name, kit: p.kit });
+    else if (p.letra) await api("/api/letras/usar", { file: name, letra: p.letra });
+    else await api("/api/reticulas/usar", { file: name, reticula: p.reticula });
+    fig.querySelector(".ph img").src = `/api/mini?f=${encodeURIComponent(name)}&v=${Date.now()}`;
+    status(`✅ Listo: ${p.nombre}.`);
+  } catch (err) { status(err.message, true); }
+}
+document.querySelectorAll("#estilosModo button").forEach(b => b.onclick = () => {
+  if (estilosDe && estilosDe.modo !== b.dataset.m) abrirEstilos(estilosDe.name, estilosDe.fig, b.dataset.m);
+});
+$("estilosOrig").onclick = () => usarEstilo({ reticula: "original", nombre: "layout original" });
+$("letraKit").onclick = () => usarEstilo({ letra: "kit", nombre: "letra del kit" });
+$("letraMing").onclick = () => usarEstilo({ letra: "ming", nombre: "lettering de Ming" });
+$("estilosMas").onclick = masEstilos;
+$("estilosCerrar").onclick = () => $("estilos").close();
+$("estilos").addEventListener("close", () => { estilosDe = null; });
+
+// ---- editor de texto del motor hibrido ----
+let editandoFig = null, guardando = Promise.resolve();
+function abrirEditor(name, fig) {
+  editandoFig = { name, fig };
+  $("editorFrame").src = `lienzo.html?id=${encodeURIComponent(name.replace(/\.png$/, ""))}&edit=1`;
+  $("editor").showModal();
+}
+addEventListener("message", e => {
+  if (e.origin !== location.origin || e.data?.tipo !== "lienzo-textos" || !editandoFig) return;
+  const { name, fig } = editandoFig;
+  status("Redibujando con el texto nuevo…");
+  guardando = api("/api/comp/guardar", { id: e.data.id, textos: e.data.textos })
+    .then(() => { fig.querySelector(".ph img").src = `/api/mini?f=${encodeURIComponent(name)}&v=${Date.now()}`; status("✅ Texto actualizado."); })
+    .catch(err => status(err.message, true));
+});
+function cerrarEditor() {
+  // cierra al instante; el redibujado sigue en segundo plano y la tarjeta se actualiza sola
+  $("editor").close();
+  setTimeout(() => { $("editorFrame").src = "about:blank"; }, 300);  // deja salir el ultimo cambio pendiente
+}
+$("editorListo").onclick = () => { $("editorFrame").contentDocument?.activeElement?.blur(); cerrarEditor(); };
+$("editor").addEventListener("cancel", e => { e.preventDefault(); $("editorListo").click(); });
+$("rgba").addEventListener("change", () => { $("hibrido").disabled = $("rgba").checked; });
+$("hibrido").addEventListener("change", () => { store.set("hibrido", $("hibrido").checked ? "1" : "0"); pintarLecciones(); });
+$("lettering").addEventListener("change", () => store.set("lettering", $("lettering").checked ? "1" : "0"));
+if (store.get("lettering") === "0") $("lettering").checked = false;
+if (store.get("hibrido") === "0") $("hibrido").checked = false;
+
+// ---- kits de marca (se guardan en el server: marcas.json) ----
+let logoNuevo = "";
+let marcasData = {}, editando = null, colores = [];
+function pintarMarcas() {
+  const actual = $("marca").value || store.get("marca");
+  $("marca").innerHTML = '<option value="">Sin marca</option>' +
+    Object.entries(marcasData).map(([id, m]) => `<option value="${esc(id)}">${esc(m.nombre)}</option>`).join("");
+  $("marca").value = marcasData[actual] ? actual : "";
+  pintarSwatches(); filtrarGal(); pintarBib(); pintarSeries();
+}
+function pintarSwatches() {
+  const m = marcasData[$("marca").value];
+  $("marcaColores").innerHTML = (m?.colores || []).map(c => `<i style="background:${c}" title="${c}"></i>`).join("");
+  $("marcaEdit").hidden = !m;
+}
+$("marca").addEventListener("change", () => { store.set("marca", $("marca").value); pintarSwatches(); filtrarGal(); pintarBib(); });
+function pintarColores() {
+  $("k_colores").innerHTML = colores.map((c, i) =>
+    `<span><input type="color" value="${c}" data-i="${i}" aria-label="Color ${i + 1}"><button type="button" data-x="${i}" aria-label="Quitar color">×</button></span>`).join("") +
+    (colores.length < 6 ? '<button type="button" id="k_mas">+ color</button>' : "");
+  $("k_colores").querySelectorAll("input").forEach(el => el.oninput = () => colores[+el.dataset.i] = el.value);
+  $("k_colores").querySelectorAll("[data-x]").forEach(b => b.onclick = () => { colores.splice(+b.dataset.x, 1); pintarColores(); });
+  $("k_mas")?.addEventListener("click", () => { colores.push("#ff6b4a"); pintarColores(); });
+}
+const KCAMPOS = { nombre: "k_nombre", rubro: "k_rubro", tipografias: "k_tipos", tono: "k_tono", estilo: "k_estilo", datos: "k_datos", evitar: "k_evitar" };
+function abrirKit(id) {
+  editando = id;
+  const m = id ? marcasData[id] : {};
+  for (const [k, el] of Object.entries(KCAMPOS)) $(el).value = m[k] || "";
+  colores = [...(m.colores || [])];
+  pintarColores();
+  logoNuevo = ""; $("k_logo").value = "";
+  $("k_logoPrev").hidden = $("k_sacar").hidden = !m.logo; if (m.logo) $("k_logoPrev").src = m.logo + "?v=" + Date.now();
+  $("kitTitulo").textContent = id ? `Editar ${m.nombre}` : "Nueva marca";
+  $("kitBorrar").hidden = !id;
+  $("kit").hidden = false; $("k_nombre").focus();
+}
+$("marcaNueva").onclick = () => abrirKit(null);
+$("marcaEdit").onclick = () => abrirKit($("marca").value);
+$("kitCancelar").onclick = () => $("kit").hidden = true;
+const aDataURL = blob => new Promise((ok, ko) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = ko; r.readAsDataURL(blob); });
+async function sacarColores(img) {
+  try { colores = (await api("/api/marcas/colores", { image: img })).colores; pintarColores(); status(`🎨 Saqué ${colores.length} colores de tu logo. Ajústalos si quieres.`); }
+  catch (e) { status(e.message, true); }
+}
+// subir el logo NO toca tus colores; solo se llenan solos si la marca aun no tiene ninguno
+$("k_logo").addEventListener("change", async () => {
+  const f = $("k_logo").files[0]; if (!f) return;
+  logoNuevo = await aDataURL(f);
+  $("k_logoPrev").src = logoNuevo; $("k_logoPrev").hidden = false; $("k_sacar").hidden = false;
+  if (!colores.length) sacarColores(logoNuevo);
+  else status("Logo listo. Tus colores no se tocaron. Dale Guardar marca.");
+});
+$("k_sacar").onclick = async () => {
+  const img = logoNuevo || await aDataURL(await (await fetch($("k_logoPrev").src)).blob());
+  sacarColores(img);
+};
+$("kitGuardar").onclick = async () => {
+  const m = { id: editando, colores };
+  for (const [k, el] of Object.entries(KCAMPOS)) m[k] = $(el).value.trim();
+  if (!m.nombre) { $("k_nombre").focus(); return status("Ponle nombre a la marca.", true); }
+  try {
+    let j = await api("/api/marcas/guardar", m);
+    if (logoNuevo) { await api("/api/marcas/logo", { id: j.id, image: logoNuevo }); j = await (await fetch("/api/marcas")).json().then(x => ({ ...j, marcas: x.marcas })); }
+    marcasData = j.marcas; store.set("marca", j.id); $("marca").value = j.id;
+    pintarMarcas(); $("kit").hidden = true; status(`✅ Marca "${m.nombre}" guardada. Todo lo que crees ahora sale con su identidad.`);
+  } catch (e) { status(e.message, true); }
+};
+$("kitBorrar").onclick = async () => {
+  const b = $("kitBorrar");
+  if (!b.classList.contains("seguro")) { b.classList.add("seguro"); b.textContent = "¿Borrar?"; return setTimeout(() => { b.classList.remove("seguro"); b.textContent = "🗑"; }, 3000); }
+  marcasData = (await api("/api/marcas/borrar", { id: editando })).marcas;
+  store.set("marca", ""); $("marca").value = ""; pintarMarcas(); $("kit").hidden = true;
+};
+fetch("/api/marcas").then(r => r.json()).then(j => { marcasData = j.marcas; pintarMarcas(); });
+
+// ---- biblioteca por marca: piezas curadas que el Director reusara ----
+let TIPOS_BIB = { fondo: "Fondo", sujeto: "Plato / sujeto", objeto: "Objeto" }, piezas = [], vista = store.get("vista") || "gal";
+let bibTipo = store.get("bibTipo") || "todo";
+function verVista(v) {
+  vista = v; store.set("vista", v);
+  document.querySelectorAll("[data-vista]").forEach(b => { b.classList.toggle("on", b.dataset.vista === v); b.setAttribute("aria-pressed", b.dataset.vista === v); });
+  document.querySelectorAll("[data-v]").forEach(d => d.hidden = d.dataset.v !== v);
+  v === "bib" ? pintarBib() : filtrarGal();
+}
+document.querySelectorAll("[data-vista]").forEach(b => b.onclick = () => verVista(b.dataset.vista));
+function pintarBib() {
+  if (vista !== "bib") return;
+  const m = $("marca").value, todas = $("verTodas").checked;
+  const deMarca = piezas.filter(p => todas || p.marca === m);
+  const nRev = deMarca.filter(p => p.estado === "revisar").length;
+  const opciones = [["todo", "Todo"], ...Object.entries(TIPOS_BIB), ["revisar", `Por revisar (${nRev})`]];
+  $("bibTipo").innerHTML = opciones.map(([v, t]) => `<button type="button" data-v="${v}" aria-pressed="${bibTipo === v}" class="${bibTipo === v ? "on" : ""}">${esc(t)}</button>`).join("");
+  $("bibTipo").querySelectorAll("button").forEach(b => b.onclick = () => { bibTipo = b.dataset.v; store.set("bibTipo", bibTipo); pintarBib(); });
+  const lista = deMarca.filter(p => bibTipo === "revisar" ? p.estado === "revisar" : p.estado === "ok" && (bibTipo === "todo" || p.tipo === bibTipo));
+  const nomMarca = todas ? "todas las marcas" : marcasData[m]?.nombre || "sin marca";
+  $("galTitulo").textContent = `Biblioteca · ${nomMarca} (${deMarca.filter(p => p.estado === "ok").length})`;
+  $("bibVacia").hidden = lista.length > 0;
+  $("bibVacia").textContent = bibTipo === "revisar" ? "Nada por revisar 👌" : "Todavía no hay piezas aquí. Dale ⭐ a un diseño que te guste, sube tus fotos o importa lo viejo.";
+  const opMarcas = sel => '<option value="">Sin marca</option>' + Object.entries(marcasData).map(([id, x]) => `<option value="${esc(id)}" ${id === sel ? "selected" : ""}>${esc(x.nombre)}</option>`).join("");
+  $("bib").innerHTML = "";
+  for (const p of lista) {
+    const f = document.createElement("figure");
+    if (p.estado === "revisar") f.className = "revisar";
+    f.innerHTML = `<div class="ph"><img src="biblioteca/mini/${p.id}.png" alt="${esc(p.nombre || TIPOS_BIB[p.tipo])}" loading="lazy"></div>
+      <div class="ficha">
+        <input data-c="nombre" value="${esc(p.nombre)}" placeholder="Nombre (lo pone el Director al aprobar)" aria-label="Nombre">
+        <input data-c="etiquetas" value="${esc(p.etiquetas.join(", "))}" placeholder="noche, tropical, elegante…" aria-label="Etiquetas">
+        <div class="row"><select data-c="tipo" aria-label="Tipo">${Object.entries(TIPOS_BIB).map(([v, t]) => `<option value="${v}" ${v === p.tipo ? "selected" : ""}>${t}</option>`).join("")}</select>
+          <select data-c="marca" aria-label="Marca">${opMarcas(p.marca)}</select></div>
+        <div class="acc">${p.estado === "revisar" ? '<button type="button" class="ok">✓ Aprobar</button>' : ""}<button type="button" class="del" aria-label="Borrar pieza" title="Borrar">🗑</button></div>
+      </div>`;
+    f.querySelector("img").onclick = () => { $("lb").querySelector("img").src = `biblioteca/${p.id}.png`; $("lb").hidden = false; };
+    const guardar = async campos => {
+      try { Object.assign(p, (await api("/api/biblioteca/editar", { id: p.id, ...campos })).pieza); }
+      catch (e) { status(e.message, true); }
+    };
+    f.querySelectorAll("[data-c]").forEach(el => el.onchange = async () => { await guardar({ [el.dataset.c]: el.value }); if (el.tagName === "SELECT") pintarBib(); });
+    f.querySelector(".ok")?.addEventListener("click", async e => {
+      e.target.disabled = true; e.target.textContent = "Director nombrando…";
+      await guardar({ estado: "ok" }); pintarBib();
+    });
+    const del = f.querySelector(".del");
+    del.onclick = () => {
+      if (!del.classList.contains("seguro")) { del.classList.add("seguro"); del.textContent = "¿Borrar?"; return setTimeout(() => { del.classList.remove("seguro"); del.textContent = "🗑"; }, 3000); }
+      api("/api/biblioteca/borrar", { id: p.id }).then(() => { piezas = piezas.filter(x => x !== p); pintarBib(); }).catch(e => status(e.message, true));
+    };
+    $("bib").append(f);
+  }
+}
+async function cargarBib() {
+  const j = await (await fetch("/api/biblioteca")).json();
+  piezas = j.piezas; TIPOS_BIB = j.tipos;
+  $("bibSubirTipo").innerHTML = Object.entries(TIPOS_BIB).map(([v, t]) => `<option value="${v}">Subir como: ${t}</option>`).join("");
+  pintarBib();
+}
+$("bibSubir").onclick = () => $("bibArchivo").click();
+$("bibArchivo").onchange = async () => {
+  const archivos = [...$("bibArchivo").files], tipo = $("bibSubirTipo").value;
+  $("bibArchivo").value = "";
+  for (const [i, a] of archivos.entries()) {
+    status(`⬆ Subiendo ${i + 1} de ${archivos.length}${tipo === "fondo" ? "" : " (recortando el fondo)"}…`);
+    try {
+      const { pieza } = await api("/api/biblioteca/subir", { image: await aDataURL(a), tipo, marca: $("marca").value });
+      piezas.push(pieza);
+      if (pieza.estado === "revisar") { bibTipo = "revisar"; store.set("bibTipo", bibTipo); }
+      pintarBib();
+    } catch (e) { return status(e.message, true); }
+  }
+  if (archivos.length) status(`✅ ${archivos.length} subida(s).${tipo === "fondo" ? "" : " Revisa el recorte en 'Por revisar' y apruébalo."}`);
+};
+$("bibImportar").onclick = async () => {
+  const b = $("bibImportar"); b.disabled = true;
+  status("📥 Importando fondos y platos de tus diseños viejos… puede tardar un par de minutos.");
+  try {
+    const r = await api("/api/biblioteca/importar", {});
+    bibTipo = "revisar"; store.set("bibTipo", bibTipo); await cargarBib();
+    status(r.nuevas ? `📥 ${r.nuevas} piezas nuevas en 'Por revisar'. Aprueba lo bueno, borra lo demás.` : "📥 No había nada nuevo para importar.");
+  } catch (e) { status(e.message, true); } finally { b.disabled = false; }
+};
+
+// ---- series por marca: receta congelada; cada semana solo cambian el plato y el texto ----
+let seriesData = {};
+function pintarSeries() {
+  const m = $("marca").value;
+  const mias = Object.entries(seriesData).filter(([, s]) => s.marca === m);
+  $("serieBox").hidden = !m || !mias.length;
+  const actual = store.get("serie");
+  $("serie").innerHTML = '<option value="">Diseño libre (sin serie)</option>' + mias.map(([id, s]) => `<option value="${esc(id)}">📌 ${esc(s.nombre)}</option>`).join("");
+  $("serie").value = mias.some(([id]) => id === actual) ? actual : "";
+  const s = seriesData[$("serie").value];
+  $("serieBorrar").hidden = !s;
+  $("serieInfo").textContent = s ? `Fija formato ${s.formato}, kit ${s.kit.nombre}${s.kit.letra ? `, letra ${s.kit.letra.nombre}` : ""}, layout${s.fondo ? " y fondo" : ""}. Solo cambian el plato y el texto.` : "";
+}
+$("serie").addEventListener("change", () => { store.set("serie", $("serie").value); pintarSeries(); });
+$("marca").addEventListener("change", pintarSeries);
+$("serieBorrar").onclick = async () => {
+  const b = $("serieBorrar");
+  if (!b.classList.contains("seguro")) { b.classList.add("seguro"); b.textContent = "¿Borrar?"; return setTimeout(() => { b.classList.remove("seguro"); b.textContent = "🗑"; }, 3000); }
+  b.classList.remove("seguro"); b.textContent = "🗑";
+  try { seriesData = (await api("/api/series/borrar", { id: $("serie").value })).series; store.set("serie", ""); pintarSeries(); }
+  catch (e) { status(e.message, true); }
+};
+fetch("/api/series").then(r => r.json()).then(j => { seriesData = j.series; pintarSeries(); });
+
+cargarInfo();
+cargarBib().then(() => verVista(vista));
+// el disenador IA va guardado y apagado: su boton sale solo si el server arranca con MING_DISENADOR_ON=1
+let DISENADOR = false;
+fetch("/api/funciones").then(r => r.json()).then(x => DISENADOR = !!x.disenador).catch(() => {})
+  .finally(() => fetch("/api/list").then(r => r.json()).then(j => {
+    j.files.forEach(f => { const fig = document.createElement("figure"); $("gal").append(fig); llenar(fig, f); });
+    filtrarGal();
+  }));
+</script>
+</body>
+</html>
